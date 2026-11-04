@@ -1,0 +1,102 @@
+{
+  "n_comments": 234,
+  "all": {
+    "n": 234,
+    "claude-code": {
+      "passed": 75,
+      "rate": 32.1
+    },
+    "codex": {
+      "passed": 47,
+      "rate": 20.1
+    },
+    "devin": {
+      "passed": 58,
+      "rate": 24.8
+    },
+    "pr-agent": {
+      "passed": 54,
+      "rate": 23.1
+    },
+    "union": {
+      "passed": 97,
+      "rate": 41.5
+    }
+  },
+  "development": {
+    "n": 112,
+    "claude-code": {
+      "passed": 29,
+      "rate": 25.9
+    },
+    "codex": {
+      "passed": 12,
+      "rate": 10.7
+    },
+    "devin": {
+      "passed": 28,
+      "rate": 25.0
+    },
+    "pr-agent": {
+      "passed": 23,
+      "rate": 20.5
+    },
+    "union": {
+      "passed": 42,
+      "rate": 37.5
+    }
+  },
+  "selection": {
+    "n": 47,
+    "claude-code": {
+      "passed": 20,
+      "rate": 42.6
+    },
+    "codex": {
+      "passed": 17,
+      "rate": 36.2
+    },
+    "devin": {
+      "passed": 14,
+      "rate": 29.8
+    },
+    "pr-agent": {
+      "passed": 14,
+      "rate": 29.8
+    },
+    "union": {
+      "passed": 23,
+      "rate": 48.9
+    }
+  },
+  "test": {
+    "n": 75,
+    "claude-code": {
+      "passed": 26,
+      "rate": 34.7
+    },
+    "codex": {
+      "passed": 18,
+      "rate": 24.0
+    },
+    "devin": {
+      "passed": 16,
+      "rate": 21.3
+    },
+    "pr-agent": {
+      "passed": 17,
+      "rate": 22.7
+    },
+    "union": {
+      "passed": 32,
+      "rate": 42.7
+    }
+  },
+  "published_rate": {
+    "claude-code": 32.1,
+    "devin": 24.8,
+    "pr-agent": 23.1,
+    "codex": 20.1,
+    "union": 41.5
+  }
+}

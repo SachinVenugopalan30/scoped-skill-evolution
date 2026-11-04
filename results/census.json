@@ -1,0 +1,23 @@
+{
+  "stage0_full_test_split": {
+    "instances": 671,
+    "comments": 1313
+  },
+  "stage1_comment_filter": {
+    "instances": 410,
+    "comments": 595
+  },
+  "stage2_docker_image": {
+    "instances": 410,
+    "comments": 595
+  },
+  "stage3_testgen_verified": {
+    "instances": 339,
+    "comments": 485
+  },
+  "stage4_agent_resolved": {
+    "instances": 184,
+    "comments": 234
+  },
+  "stage4_repos": 67
+}

@@ -1,0 +1,5 @@
+partition,n_comments,claude-code_passed,claude-code_rate,codex_passed,codex_rate,devin_passed,devin_rate,pr-agent_passed,pr-agent_rate,union_passed,union_rate
+all,234,75,32.1,47,20.1,58,24.8,54,23.1,97,41.5
+development,112,29,25.9,12,10.7,28,25.0,23,20.5,42,37.5
+selection,47,20,42.6,17,36.2,14,29.8,14,29.8,23,48.9
+test,75,26,34.7,18,24.0,16,21.3,17,22.7,32,42.7
