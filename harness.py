@@ -170,8 +170,9 @@ def ensure_image(iid):
     return img
 
 
-FATAL_RE = re.compile(r"invalid api key|authentication|unauthori[sz]ed|\b401\b|credit balance|insufficient (?:credit|funds|quota)|"
-                      r"billing|rate.?limit|usage limit|quota|please run /login", re.I)
+# CLI error forms only; prose that merely mentions "authentication" or "billing" must not stop a run
+FATAL_RE = re.compile(r"invalid x-api-key|invalid api key|authentication_error|api error: ?40[13]|credit balance is too low|"
+                      r"rate_limit_error|usage limit reached|please run /login", re.I)
 
 
 def parse_claude(stdout):
@@ -201,12 +202,14 @@ def _put(session, text, dest):
         os.unlink(p)
 
 
-def invoke_claude(session, prompt, model):
+def invoke_claude(session, prompt, model, on_start=None):
     """Vendor invocation plus --output-format json and a spend cap. Key goes in via docker cp to a mode-600 file
     owned by agent; the command only names the file, sources it, and deletes it before claude starts."""
     _put(session, prompt, PROMPT_PATH)
     _put(session, f"export ANTHROPIC_API_KEY='{get_key()}'\n", KEY_PATH)
     session.run_command(f"chown agent:agent {PROMPT_PATH} {KEY_PATH} && chmod 600 {KEY_PATH}", timeout=10)
+    if on_start:
+        on_start()  # from here on spend is possible
     r = session.run_command(
         ["su", "-", "agent", "-s", "/bin/bash", "-c",
          f"cd /workspace && . {KEY_PATH} && rm -f {KEY_PATH} && cat {PROMPT_PATH} | {CLAUDE_BIN} -p "
@@ -236,6 +239,10 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         return done(error="no docker image for this instance")
     session = DockerContainerSession(get_docker_image_name(iid), name=f"sse-{uuid.uuid4().hex[:12]}")
     invoked = False
+
+    def mark():
+        nonlocal invoked
+        invoked = True
     try:
         ensure_image(iid)
         session.start()
@@ -250,15 +257,18 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         if lang == "python":
             session.run_command("pip install -e . --no-deps --quiet", timeout=120)
         prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])  # vendor prompt, unchanged
-        invoked = True
-        r = invoke_claude(session, prompt, model)
+        r = invoke_claude(session, prompt, model, mark)  # sets `invoked` right before the Claude run; earlier failures cost $0
         write_json(RAW / f"{iid.replace('/', '__')}_{uuid.uuid4().hex[:8]}.json",
                    {"returncode": r.returncode, "timed_out": r.timed_out, "stdout": r.stdout, "stderr": r.stderr})
         p = parse_claude(r.stdout)
         failed = p["is_error"] or r.returncode != 0
-        if failed and FATAL_RE.search(" ".join([p["text"], p["subtype"], r.stdout[:500], r.stderr[:500]])):
+        hay = " ".join([p["text"] if p["is_error"] else "", r.stderr[:500], "" if p["ok"] else r.stdout[:500]])
+        if failed and not r.timed_out and p["subtype"] != "error_max_budget_usd" and FATAL_RE.search(hay):
+            record("repair", iid, p["cost"])  # parsed cost (maybe $0); MAX only if the CLI ran and output was unparseable
             raise FatalRunError(f"Claude Code failed for {iid}, stopping the run: "
                                 f"{scrub(' '.join([p['text'], p['subtype'], r.stderr[:200]]))[:300]}")
+        # ponytail: a timeout is charged at the max and left as an error, so summaries count it failed (errors-as-failed) and the gate
+        # excludes it; it is not scored on a partial diff. Score the diff instead if timeouts turn out common.
         res["cost_usd"] = MAX_REPAIR_USD if r.timed_out else p["cost"]  # unknown cost is charged at the max
         if r.timed_out or not p["ok"]:
             return done(error="claude timed out" if r.timed_out else f"claude output unparseable (rc={r.returncode})")

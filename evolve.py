@@ -1,5 +1,5 @@
 """Skill library, retrieval, sanitized feedback, optimizer, selection gate, round loop, CLI."""
-import argparse, json, random, re
+import argparse, json, random, re, uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -196,7 +196,7 @@ def summarize(results):
             "pass_rate_errors_as_failed": k / total if total else None, "pass_rate_excl_errors": k / len(ok) if ok else None}
 
 
-def run_round(condition, library, dev_prs, sel_prs, gated=True):
+def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None):
     """dev_prs/sel_prs: instance dicts. Returns (new_library, record)."""
     s0 = harness.spent()
     dev = evaluate(dev_prs, library, condition)
@@ -221,6 +221,7 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True):
         new = evaluate(sel_prs, cand, condition)
         rec.update(gate({r["instance_id"]: r["passed"] for r in base}, {r["instance_id"]: r["passed"] for r in new}))
         rec.update(sel_base=summarize(base), sel_new=summarize(new))
+    rec["run_id"] = run_id
     rec["cost_usd"] = round(harness.spent() - s0, 4)
     harness.append_json(ROOT / f"results/evolution/{condition}.jsonl", rec)
     return (cand if rec["accept"] else library), rec
@@ -304,16 +305,17 @@ def main():
             harness.write_json(ROOT / f"results/static_{a.partition}.json", out)
             print(f"static {a.partition}: {json.dumps(out['summary'])} cost ${out['cost_usd']}")
         else:
+            run_id = uuid.uuid4().hex[:8]  # separates resumed runs' headers/aborted records in the append-only log
             dev_ids, sel_ids = sample("development", a.dev_n, a.seed), sample("selection", a.sel_n, a.seed)
             dev, sel = [inst[i] for i in dev_ids], [inst[i] for i in sel_ids]
             harness.append_json(ROOT / f"results/evolution/{a.condition}.jsonl", {
-                "condition": a.condition, "seed": a.seed, "gated": not a.no_gate, "dev_ids": dev_ids, "sel_ids": sel_ids,
+                "run_id": run_id, "condition": a.condition, "seed": a.seed, "gated": not a.no_gate, "dev_ids": dev_ids, "sel_ids": sel_ids,
                 "excluded": {p: {k: len(v) for k, v in eligible(p)[1].items()} for p in ("development", "selection")}})
             lib, ran = [], 0
             save_snapshot(a.condition, 0, lib)
             try:
                 for r in range(1, a.rounds + 1):
-                    lib, rec = run_round(a.condition, lib, dev, sel, not a.no_gate)
+                    lib, rec = run_round(a.condition, lib, dev, sel, not a.no_gate, run_id)
                     save_snapshot(a.condition, r, lib)
                     ran = r
                     print(f"round {r}: accept={rec['accept']} gained={rec['gained']} regressed={rec['regressed']} "
@@ -321,7 +323,7 @@ def main():
             except (harness.StopRun, KeyboardInterrupt) as ex:
                 print("STOPPED:", repr(ex) if isinstance(ex, KeyboardInterrupt) else ex)
                 harness.append_json(ROOT / f"results/evolution/{a.condition}.jsonl",
-                                    {"condition": a.condition, "aborted": str(ex) or type(ex).__name__, "round": ran + 1})
+                                    {"run_id": run_id, "condition": a.condition, "aborted": str(ex) or type(ex).__name__, "round": ran + 1})
             print(f"{ran}/{a.rounds} rounds completed; library has {len(lib)} skills; total spent ${harness.spent():.2f}")
     except harness.StopRun as ex:
         print("STOPPED:", ex)

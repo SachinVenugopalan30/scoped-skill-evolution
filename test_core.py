@@ -371,6 +371,7 @@ def test_round():
                 mock.patch.object(litellm, "completion_cost", return_value=0.01):
             return evolve.run_round("scoped", [], insts, insts, gated)
     lib, rec = run("HELP always")
+    assert "run_id" in rec
     assert rec["accept"] and rec["gained"] == 3 and len(lib) == 1
     lib, rec = run("unhelpful")
     assert not rec["accept"] and lib == [] and rec["gained"] == 0
@@ -422,7 +423,7 @@ def test_repair_failures():
         assert r["error"] is None and {p["passed"] for p in r["per_comment"]} == {True} and r["claude_version"].startswith("2.1")
         assert list(harness.RAW.glob("*.json"))  # raw output kept
         # auth / credit / rate-limit: fatal, stops the run, no phantom charge, no secret in the message
-        for msg in ("Invalid API key · Please run /login", "Credit balance is too low", "rate limit reached", "usage limit exceeded"):
+        for msg in ("Invalid API key · Please run /login", "Credit balance is too low", "API Error: 429 rate_limit_error", "Claude usage limit reached"):
             spent0 = harness.spent()
             try:
                 with mock.patch.object(harness, "CACHE", harness.CACHE / msg[:5]):
@@ -433,8 +434,59 @@ def test_repair_failures():
                         harness.repair_pr(INST, [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}])
                 raise SystemExit("fatal error not raised: " + msg)
             except harness.FatalRunError as e:
-                assert KEY not in str(e) and harness.spent() == spent0 and sess.removed
+                assert KEY not in str(e) and abs(harness.spent() - spent0 - 0.4) < 1e-9 and sess.removed  # parsed cost is recorded before stopping
         assert KEY not in "".join(p.read_text() for p in harness.RAW.glob("*.json"))
+        # fatal-looking text is not fatal when: budget-stop subtype, or prose merely mentioning authentication/billing
+        r, _ = repair_with(cj(is_error=True, subtype="error_max_budget_usd", result="Invalid API key please run /login"), rc=1, diff="d", passed=True)
+        assert r["error"] is None
+        r, _ = repair_with(cj(is_error=True, subtype="error_during_execution", result="the authentication and billing modules look fine"), rc=1)
+        assert r["error"] and "claude failed" in r["error"]
+        # fatal text outside the result of an is_error run (here: rc!=0 but is_error false) is not fatal
+        r, _ = repair_with(cj(is_error=False, result="Invalid API key"), rc=1)
+        assert r["error"] and "claude failed" in r["error"]
+        # real invoke_claude: on_start fires after the docker cp steps and before the claude command
+        class Rec(FakeSession):
+            def __init__(s, fail=False): super().__init__(); s.log, s.fail = [], fail
+            def copy_to(s, src, dst):
+                if s.fail: raise RuntimeError("cp failed")
+                s.log.append("cp")
+            def run_command(s, cmd, **k):
+                s.log.append("claude" if isinstance(cmd, list) else "sh"); return super().run_command(cmd, **k)
+        rs = Rec(); harness.invoke_claude(rs, "p", "m", lambda: rs.log.append("start"))
+        assert rs.log.index("start") < rs.log.index("claude") and rs.log.index("cp") < rs.log.index("start")
+        rs = Rec(fail=True); started = []
+        try:
+            harness.invoke_claude(rs, "p", "m", lambda: started.append(1)); raise SystemExit("cp should fail")
+        except RuntimeError:
+            assert not started
+        # parsed $0 records $0; unparseable fatal output records the max
+        for out, want in ((cj(is_error=True, result="Invalid API key", total_cost_usd=0.0), 0.0), ("Invalid API key", harness.MAX_REPAIR_USD)):
+            sp0, sess = harness.spent(), FakeSession()
+            o = SimpleNamespace(stdout=out, stderr="", returncode=1, timed_out=False)
+            with mock.patch.object(harness, "DockerContainerSession", lambda *a, **k: sess), mock.patch.object(harness, "ensure_image", lambda i: i), \
+                    mock.patch.object(harness, "setup_claude_in_container", lambda s: None), mock.patch.object(harness, "invoke_claude", lambda *a: o):
+                try:
+                    harness.run_repair(INST, [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]); raise SystemExit("not fatal")
+                except harness.FatalRunError:
+                    pass
+            assert abs(harness.spent() - sp0 - want) < 1e-9, (out, harness.spent() - sp0)
+        # `invoked` flips only when Claude is about to run: a failure before that costs $0, uncached, retried once
+        f = [{"file": "z.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+        n = []
+        def cp_fails(session, prompt, model, on_start=None):
+            n.append(1); raise RuntimeError("docker cp failed")
+        def after_start(session, prompt, model, on_start=None):
+            on_start(); raise RuntimeError("connection lost")
+        with mock.patch.object(harness, "DockerContainerSession", lambda *a, **k: FakeSession()), mock.patch.object(harness, "ensure_image", lambda i: i), \
+                mock.patch.object(harness, "setup_claude_in_container", lambda s: None):
+            sp0 = harness.spent()
+            with mock.patch.object(harness, "invoke_claude", cp_fails):
+                r = harness.repair_pr(INST, f)
+                assert r["error"] and r["cost_usd"] == 0 and len(n) == 2 and harness.spent() == sp0  # retried once, no charge
+                harness.repair_pr(INST, f); assert len(n) == 4  # not cached
+            with mock.patch.object(harness, "invoke_claude", after_start):
+                r = harness.repair_pr(INST, f)
+            assert r["error"] and r["cost_usd"] == harness.MAX_REPAIR_USD
 
 
 def test_evaluate_stops():
