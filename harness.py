@@ -1,5 +1,5 @@
 """Spend ledger, content-addressed cache, Docker repair run scored on Stage 4 tests, pilot CLI."""
-import argparse, hashlib, json, math, os, subprocess, sys, tempfile, threading, time, uuid, zipfile
+import argparse, hashlib, json, math, os, re, subprocess, sys, tempfile, threading, time, uuid, warnings, zipfile
 from functools import lru_cache
 from pathlib import Path
 
@@ -18,6 +18,8 @@ ENV_FILE = ROOT.parent / ".env"
 TESTGEN_ZIP = VENDOR / "raw_results_compressed/testgen_combined.zip"
 LEDGER = ROOT / "runs/ledger.jsonl"
 CACHE = ROOT / "runs/cache"
+RAW = ROOT / "runs/raw"   # scrubbed raw claude output per repair run
+HARNESS_VERSION = "1"     # bump when repair flow/scoring changes: invalidates repair cache
 CAP_USD = 22.0
 MAX_REPAIR_USD = 1.5       # passed to claude --max-budget-usd; also the charge when real cost is unknown
 REVIEW_RESERVE_USD = 0.3
@@ -35,8 +37,11 @@ def get_key():
 
 
 def setup():
-    """CLI entry: make the key visible to litellm in this (host) process only."""
+    """CLI entry: make the key visible to litellm in this (host) process only. Aborts before any paid/ledger activity if missing."""
     load_dotenv(ENV_FILE)
+    get_key.cache_clear()
+    if not get_key():
+        raise SystemExit("ANTHROPIC_API_KEY is empty or missing: set it in the parent .env or the environment")
 
 
 def scrub(text, key=None):
@@ -44,15 +49,36 @@ def scrub(text, key=None):
     return text.replace(key, "[REDACTED]") if key and isinstance(text, str) else text
 
 
-def write_json(path, obj):
-    """Only way we write under runs/: key is scrubbed from the serialized text."""
+def write_text(path, text):
+    """Scrubbed, atomic (temp + rename). The only way we write under runs/ and results/."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(scrub(json.dumps(obj, indent=1, default=str)))
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    tmp.write_text(scrub(text))
+    tmp.replace(path)
+
+
+def write_json(path, obj):
+    write_text(path, json.dumps(obj, indent=1, default=str))
+
+
+def append_json(path, obj):
+    with _lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a") as f:
+            f.write(scrub(json.dumps(obj, default=str)) + "\n")
 
 
 # ---------- spend ledger ----------
-class BudgetExceeded(Exception):
+class StopRun(Exception):
+    """Whole run must stop now (workers must not retry or continue)."""
+
+
+class BudgetExceeded(StopRun):
     pass
+
+
+class FatalRunError(StopRun):
+    """Auth, credit-balance or rate-limit exhaustion: every further call would fail the same way."""
 
 
 _lock = threading.Lock()
@@ -60,7 +86,16 @@ _lock = threading.Lock()
 
 
 def _spent():
-    return sum(json.loads(l)["cost"] for l in LEDGER.read_text().splitlines() if l.strip()) if LEDGER.exists() else 0.0
+    total = 0.0
+    for l in (LEDGER.read_text().splitlines() if LEDGER.exists() else []):
+        if not l.strip():
+            continue
+        try:
+            total += json.loads(l)["cost"]
+        except Exception:  # partial/corrupt line (crash mid-write): charge the max rather than crash or ignore it
+            warnings.warn(f"corrupt ledger line, charging ${MAX_REPAIR_USD}: {l[:60]!r}")
+            total += MAX_REPAIR_USD
+    return total
 
 
 def spent():
@@ -89,13 +124,14 @@ def key(*parts):
 
 
 def cached(kind, k, fn):
-    """fn() -> result dict. Hit: cost 0, no budget check. Errored results are not stored."""
+    """fn() -> result dict. Hit: cost 0, no budget check. An errored result is stored iff it cost money (or was charged
+    at the unknown-cost max), so re-evaluating never re-bills; unbilled infra errors are not stored and may retry."""
     p = CACHE / kind / f"{k}.json"
     if p.exists():
         old = json.loads(p.read_text())
         return {**old, "cached": True, "orig_cost_usd": old.get("cost_usd"), "cost_usd": 0.0}
     res = fn()
-    if not res.get("error"):
+    if not res.get("error") or res.get("cost_usd", 0) > 0:
         write_json(p, res)
     return res
 
@@ -134,17 +170,25 @@ def ensure_image(iid):
     return img
 
 
+FATAL_RE = re.compile(r"invalid api key|authentication|unauthori[sz]ed|\b401\b|credit balance|insufficient (?:credit|funds|quota)|"
+                      r"billing|rate.?limit|usage limit|quota|please run /login", re.I)
+
+
 def parse_claude(stdout):
-    """(result_text, cost, ok). Unparseable output or missing cost -> cost = MAX_REPAIR_USD, ok False."""
+    """Tolerant parse of `claude -p --output-format json`. Returns text, cost, ok, is_error, subtype.
+    ok False (no usable cost) -> cost = MAX_REPAIR_USD, the unknown-cost charge."""
+    out = {"text": "", "cost": MAX_REPAIR_USD, "ok": False, "is_error": False, "subtype": ""}
     try:
         o = json.loads(stdout)
         if isinstance(o, list):
             o = [x for x in o if isinstance(x, dict) and x.get("type") == "result"][-1]
+        out.update(text=str(o.get("result", "")), is_error=bool(o.get("is_error")), subtype=str(o.get("subtype") or ""))
         cost = o["total_cost_usd"]
         assert isinstance(cost, (int, float)) and math.isfinite(cost) and cost >= 0
-        return str(o.get("result", "")), float(cost), True
+        out.update(cost=float(cost), ok=True)
     except Exception:
-        return "", MAX_REPAIR_USD, False
+        pass
+    return out
 
 
 def _put(session, text, dest):
@@ -208,13 +252,23 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])  # vendor prompt, unchanged
         invoked = True
         r = invoke_claude(session, prompt, model)
-        _, cost, ok = parse_claude(r.stdout)
-        res["cost_usd"] = MAX_REPAIR_USD if r.timed_out else cost  # unknown cost is charged at the max
-        if r.timed_out or not ok:
+        write_json(RAW / f"{iid.replace('/', '__')}_{uuid.uuid4().hex[:8]}.json",
+                   {"returncode": r.returncode, "timed_out": r.timed_out, "stdout": r.stdout, "stderr": r.stderr})
+        p = parse_claude(r.stdout)
+        failed = p["is_error"] or r.returncode != 0
+        if failed and FATAL_RE.search(" ".join([p["text"], p["subtype"], r.stdout[:500], r.stderr[:500]])):
+            raise FatalRunError(f"Claude Code failed for {iid}, stopping the run: "
+                                f"{scrub(' '.join([p['text'], p['subtype'], r.stderr[:200]]))[:300]}")
+        res["cost_usd"] = MAX_REPAIR_USD if r.timed_out else p["cost"]  # unknown cost is charged at the max
+        if r.timed_out or not p["ok"]:
             return done(error="claude timed out" if r.timed_out else f"claude output unparseable (rc={r.returncode})")
         diff = session.run_command("git diff", timeout=30).stdout
         res["agent_diff"] = scrub(diff)
-        if not diff.strip() and not session.run_command("git status --porcelain", timeout=15).stdout.strip():
+        dirty = diff.strip() or session.run_command("git status --porcelain", timeout=15).stdout.strip()
+        if failed and p["subtype"] != "error_max_budget_usd" and not dirty:
+            # the agent did not really run: infra error, not a failed test
+            return done(error=f"claude failed (rc={r.returncode}, subtype={p['subtype']}): {p['text'][:200]}")
+        if not dirty:
             return done(passed=False)  # no changes = failed tests, not an infra error
         if lang == "python":
             session.run_command("pip install -e . --no-deps --quiet", timeout=120)
@@ -222,6 +276,8 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
             pc["passed"], _ = verify_with_test(session, e["test_code"], f"test_review_comment_{i}{EXT.get(lang, '.py')}", lang)
         res["duration_s"] = round(time.time() - t0, 1)
         return res
+    except StopRun:
+        raise
     except Exception as e:
         if invoked and not res["cost_usd"]:
             res["cost_usd"] = MAX_REPAIR_USD
@@ -232,28 +288,28 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
 
 # ---------- budgeted, cached entry points ----------
 def run_review(inst, skills, model=reviewer.MODEL):
-    k = key("review", inst["instance_id"], inst["commit_to_review"]["patch_to_review"], list(skills), model)
+    msgs = reviewer.build_messages(inst, skills)
+    k = key("review", inst["instance_id"], json.dumps(msgs), model, reviewer.TEMPERATURE, reviewer.MAX_TOKENS, reviewer.RETRY_MAX_TOKENS)
     def go():
         check_budget(REVIEW_RESERVE_USD)
-        r = reviewer.review(inst, skills, model)
-        record("review", inst["instance_id"], r["cost_usd"])
-        return r
+        return reviewer.review(inst, skills, model, on_cost=lambda c: record("review", inst["instance_id"], c))
     return cached("review", k, go)
-
-
-def canonical(findings):
-    return json.dumps(findings, sort_keys=True)
 
 
 def repair_pr(inst, findings, model=REPAIR_MODEL):
     if not findings:  # nothing to apply: no container, no cost
         return run_repair(inst, findings, model)
+    prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])
     def go():
         check_budget(MAX_REPAIR_USD)
         r = run_repair(inst, findings, model)
         record("repair", inst["instance_id"], r["cost_usd"])
+        if r["error"] and not r["cost_usd"]:  # unbilled infra error (e.g. docker pull/cp): retry once
+            check_budget(MAX_REPAIR_USD)
+            r = run_repair(inst, findings, model)
+            record("repair", inst["instance_id"], r["cost_usd"])
         return r
-    return cached("repair", key("repair", inst["instance_id"], canonical(findings), model), go)
+    return cached("repair", key("repair", inst["instance_id"], HARNESS_VERSION, prompt, model, MAX_REPAIR_USD), go)
 
 
 def pr_passed(rep):
@@ -264,6 +320,9 @@ def pr_passed(rep):
 
 
 def pilot(iid, skills=()):
+    allowed = json.load(open(ROOT / "results/splits.json"))["instance_ids"]
+    if iid not in allowed["development"] + allowed["selection"]:
+        raise SystemExit(f"{iid} is not in the development or selection partition: refusing")
     setup()
     inst = instances()[iid]
     rv = run_review(inst, list(skills))
@@ -279,4 +338,7 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("pilot").add_argument("--instance", required=True)
     a = ap.parse_args()
-    pilot(a.instance)
+    try:
+        pilot(a.instance)
+    except StopRun as e:
+        print("STOPPED:", e)

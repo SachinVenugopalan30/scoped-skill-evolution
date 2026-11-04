@@ -4,6 +4,7 @@ import litellm
 
 MODEL = "claude-sonnet-4-6"
 MAX_FINDINGS = 5
+MAX_TOKENS, RETRY_MAX_TOKENS, TEMPERATURE = 3000, 6000, 0
 MAX_DIFF_CHARS = 120_000  # ponytail: hard char cap on the diff (~30k tokens); chunk or summarize per file if big PRs matter
 PRICE_IN, PRICE_OUT = 3.0, 15.0  # $/MTok fallback when litellm has no price for the model
 
@@ -43,18 +44,15 @@ def _text(x):
 
 def extract_list(raw, key=None):
     """First JSON list in raw (or the list under `key` of the first JSON object); None if there is none."""
-    dec = json.JSONDecoder()
-    for i, ch in enumerate(raw):
-        if ch not in "[{":
-            continue
-        try:
-            obj, _ = dec.raw_decode(raw[i:])
-        except ValueError:
-            continue
-        if isinstance(obj, dict):
-            obj = obj.get(key)
-        if isinstance(obj, list):
-            return obj
+    i = min((raw.find(c) for c in "[{" if c in raw), default=-1)
+    if i < 0:
+        return None
+    try:  # only the first bracket counts: a truncated outer list must not yield a stray inner one
+        obj, _ = json.JSONDecoder().raw_decode(raw[i:])
+    except ValueError:
+        return None
+    obj = obj.get(key) if isinstance(obj, dict) else obj
+    return obj if isinstance(obj, list) else None
 
 
 def parse_findings(raw):
@@ -78,11 +76,18 @@ def parse_findings(raw):
     return out[:MAX_FINDINGS]
 
 
-def review(instance, skills, model=MODEL):
+def review(instance, skills, model=MODEL, on_cost=None):
     msgs, cost, usage, err, findings = build_messages(instance, skills), 0.0, {"prompt_tokens": 0, "completion_tokens": 0}, None, []
-    for attempt in range(2):  # unparseable output is retried once
-        resp = litellm.completion(model=model, messages=msgs, temperature=0, max_tokens=3000, num_retries=2)
-        cost += cost_of(resp)
+    for attempt in range(2):  # unparseable output is retried once, with a different request
+        if attempt:
+            msgs = msgs[:-1] + [{**msgs[-1], "content": msgs[-1]["content"] + "\n\nYour previous reply was not valid JSON. "
+                                 "Reply with valid JSON only (a short list), keep it shorter."}]
+        resp = litellm.completion(model=model, messages=msgs, temperature=TEMPERATURE, num_retries=2,
+                                  max_tokens=RETRY_MAX_TOKENS if attempt else MAX_TOKENS)
+        c = cost_of(resp)
+        cost += c
+        if on_cost:
+            on_cost(c)  # spend is recorded per attempt, so a failure later cannot lose it
         usage["prompt_tokens"] += resp.usage.prompt_tokens
         usage["completion_tokens"] += resp.usage.completion_tokens
         parsed = parse_findings(resp.choices[0].message.content or "")

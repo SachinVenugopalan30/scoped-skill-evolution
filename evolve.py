@@ -17,18 +17,18 @@ LINE_RE = re.compile(r"\blines?\s*\d+(?:\s*[-–]\s*\d+)?", re.I)
 
 # ---------- library + retrieval ----------
 def retrieve(library, pr_type, condition, budget_tokens=400):
-    """static: none. global: global-scope skills only. scoped: global + this PR type's. Library order, stop at budget."""
+    """static: none. global: global-scope skills only. scoped: this PR type's skills first, then global ones.
+    Ordering rule: within each group, library order. A skill that would exceed the budget is skipped and later,
+    smaller ones may still fit. Same budget for both conditions."""
     if condition == "static":
         return []
-    ok = ("global",) if condition == "global" else ("global", pr_type)
+    groups = [["global"]] if condition == "global" else [[pr_type], ["global"]]
     out, used = [], ""
-    for s in library:
-        if s["scope"] not in ok:
-            continue
-        if litellm.token_counter(model=reviewer.MODEL, text=used + "\n" + s["text"]) > budget_tokens:
-            break
-        used += "\n" + s["text"]
-        out.append(s)
+    for scopes in groups:
+        for s in library:
+            if s["scope"] in scopes and litellm.token_counter(model=reviewer.MODEL, text=used + "\n" + s["text"]) <= budget_tokens:
+                used += "\n" + s["text"]
+                out.append(s)
     return out
 
 
@@ -48,9 +48,7 @@ def apply_edits(library, edits):
 
 
 def save_snapshot(condition, n, library):
-    p = ROOT / f"results/skills/{condition}/round_{n}.json"
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(library, indent=1))
+    harness.write_json(ROOT / f"results/skills/{condition}/round_{n}.json", library)
 
 
 # ---------- sanitizer ----------
@@ -149,7 +147,7 @@ def _safe(inst, library, condition):
     for attempt in range(2):  # retried once, then recorded
         try:
             return evaluate_pr(inst, library, condition)
-        except harness.BudgetExceeded:
+        except harness.StopRun:
             raise
         except Exception as e:
             err = f"{type(e).__name__}: {e}"[:300]
@@ -158,18 +156,44 @@ def _safe(inst, library, condition):
 
 
 def evaluate(insts, library, condition, out=None):
-    """Results are appended to `out` as they finish, so a BudgetExceeded still leaves partials."""
+    """Results are appended to `out` as they finish. On StopRun (budget/fatal) or Ctrl-C, queued work is cancelled so it
+    stops paying, in-flight results are still collected, then the stop is re-raised."""
     out = [] if out is None else out
-    stop = None
-    with ThreadPoolExecutor(harness.WORKERS) as ex:
-        for f in [ex.submit(_safe, i, library, condition) for i in insts]:
+    stop, seen = None, set()
+    ex = ThreadPoolExecutor(harness.WORKERS)
+    futs = [ex.submit(_safe, i, library, condition) for i in insts]
+    try:
+        for f in futs:
+            if f.cancelled():
+                continue
             try:
-                out.append(f.result())
-            except harness.BudgetExceeded as e:
-                stop = stop or e
+                out.append(f.result()); seen.add(id(f))
+            except harness.StopRun as e:
+                seen.add(id(f)); stop = stop or e
+                ex.shutdown(wait=False, cancel_futures=True)
+    except KeyboardInterrupt:
+        stop = KeyboardInterrupt()
+        ex.shutdown(wait=False, cancel_futures=True)
+    finally:
+        ex.shutdown(wait=True)
+    for f in futs:  # in-flight work that finished while we were stopping
+        if id(f) not in seen and f.done() and not f.cancelled() and f.exception() is None:
+            out.append(f.result())
     if stop:
         raise stop
     return out
+
+
+def summarize(results):
+    """Main number is pass_rate_errors_as_failed (an errored PR's comments count as failed, like released tools with
+    missing results); pass_rate_excl_errors drops errored PRs."""
+    inst = harness.instances()
+    err = [r["instance_id"] for r in results if r["passed"] is None]
+    total = sum(len(inst[r["instance_id"]]["reference_review_comments"]) for r in results)
+    ok = [p for r in results if r["passed"] is not None for p in r["per_comment"]]
+    k = sum(p["passed"] is True for p in ok)
+    return {"n_prs": len(results), "n_errors": len(err), "errored_prs": err, "n_comments": total, "passed": k,
+            "pass_rate_errors_as_failed": k / total if total else None, "pass_rate_excl_errors": k / len(ok) if ok else None}
 
 
 def run_round(condition, library, dev_prs, sel_prs, gated=True):
@@ -185,7 +209,8 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True):
         forbidden += check
     edits = propose_edits(library, fb, condition, forbidden) if fb else []
     cand = apply_edits(library, edits)
-    rec = {"condition": condition, "edits": edits, "dev_passed": {r["instance_id"]: r["passed"] for r in dev}}
+    rec = {"condition": condition, "edits": edits, "dev_passed": {r["instance_id"]: r["passed"] for r in dev},
+           "dev": summarize(dev)}
     if not edits:
         rec.update(accept=False, gained=0, regressed=0, excluded=[], note="no edits")
     elif not gated:
@@ -195,37 +220,57 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True):
         base = evaluate(sel_prs, library, condition)
         new = evaluate(sel_prs, cand, condition)
         rec.update(gate({r["instance_id"]: r["passed"] for r in base}, {r["instance_id"]: r["passed"] for r in new}))
+        rec.update(sel_base=summarize(base), sel_new=summarize(new))
     rec["cost_usd"] = round(harness.spent() - s0, 4)
-    log = ROOT / f"results/evolution/{condition}.jsonl"
-    log.parent.mkdir(parents=True, exist_ok=True)
-    with log.open("a") as f:
-        f.write(json.dumps(rec) + "\n")
+    harness.append_json(ROOT / f"results/evolution/{condition}.jsonl", rec)
     return (cand if rec["accept"] else library), rec
 
 
 # ---------- sampling ----------
-def sample(partition, n, seed):
+def eligible(partition):
+    """({pr_type: [ids]}, excluded). Same filter for every condition: no docker image, or diff too long for the reviewer cap."""
     if partition == "test":
         raise ValueError("locked test partition: our system may not run on it")
     ids = json.load(open(ROOT / "results/splits.json"))["instance_ids"][partition]
     inst = harness.instances()
-    by = {}
+    by, ex = {}, {"no_image": [], "oversize": []}
     for i in sorted(ids):
-        if i not in harness.NO_IMAGE:
+        if i in harness.NO_IMAGE:
+            ex["no_image"].append(i)
+        elif len(inst[i]["commit_to_review"]["patch_to_review"]) > reviewer.MAX_DIFF_CHARS:
+            ex["oversize"].append(i)
+        else:
             by.setdefault(data.pr_type(inst[i]), []).append(i)
-    total = sum(map(len, by.values()))
-    n = min(n, total)
-    quota = {t: n * len(v) // total for t, v in by.items()}
-    for t in sorted(by, key=lambda t: (-(n * len(by[t]) % total), t))[: n - sum(quota.values())]:
-        quota[t] += 1  # largest remainder
+    return by, ex
+
+
+def sample(partition, n, seed):
+    """Seeded and nested: sample(p, m, seed) == sample(p, n, seed)[:m] for m < n. Each type's PRs are shuffled with the seed,
+    then types are interleaved by largest deficit against their population share, so every prefix is proportionally
+    stratified to within one PR. Returned in that order (not sorted)."""
+    by, _ = eligible(partition)
     rng = random.Random(seed)
-    return sorted(i for t in sorted(by) for i in rng.sample(by[t], quota[t]))
+    pools = {t: rng.sample(by[t], len(by[t])) for t in sorted(by)}
+    total, taken, out = sum(map(len, pools.values())), {t: 0 for t in pools}, []
+    for k in range(min(n, total)):
+        t = max((t for t in pools if taken[t] < len(pools[t])), key=lambda t: (len(pools[t]) * (k + 1) / total - taken[t], t))
+        out.append(pools[t][taken[t]]); taken[t] += 1
+    return out
 
 
 # ---------- CLI ----------
 def comment_rows(results):
-    return [{"instance_id": r["instance_id"], "repo": r["repo"], "comment_index": p["comment_index"], "passed": p["passed"]}
-            for r in results for p in r["per_comment"] if p["passed"] is not None]
+    """One row per reference comment; comments of errored PRs are rows with passed False, error True (errors-as-failed)."""
+    inst = harness.instances()
+    rows = []
+    for r in results:
+        if r["passed"] is None:
+            rows += [{"instance_id": r["instance_id"], "repo": r["repo"], "comment_index": i, "passed": False, "error": True}
+                     for i in range(len(inst[r["instance_id"]]["reference_review_comments"]))]
+        else:
+            rows += [{"instance_id": r["instance_id"], "repo": r["repo"], "comment_index": p["comment_index"],
+                      "passed": p["passed"], "error": False} for p in r["per_comment"]]
+    return rows
 
 
 def main():
@@ -250,16 +295,20 @@ def main():
             ids, res = sample(a.partition, a.n, a.seed), []
             try:
                 evaluate([inst[i] for i in ids], [], "static", res)
-            except harness.BudgetExceeded as ex:
-                print("STOPPED:", ex)
-            out = {"partition": a.partition, "seed": a.seed, "n_requested": len(ids), "n_done": len(res), "prs": res,
-                   "comments": comment_rows(res), "cost_usd": round(sum(r["cost_usd"] for r in res), 4)}
-            (ROOT / f"results/static_{a.partition}.json").write_text(json.dumps(out, indent=1))
-            print(f"static {a.partition}: {len(res)}/{len(ids)} PRs, {len(out['comments'])} comments, passed "
-                  f"{sum(c['passed'] for c in out['comments'])}, cost ${out['cost_usd']}")
+            except (harness.StopRun, KeyboardInterrupt) as ex:
+                print("STOPPED:", repr(ex) if isinstance(ex, KeyboardInterrupt) else ex)
+            out = {"condition": "static", "partition": a.partition, "seed": a.seed, "n_requested": len(ids), "n_done": len(res),
+                   "excluded": {k: {"n": len(v), "ids": v} for k, v in eligible(a.partition)[1].items()},
+                   "summary": summarize(res), "prs": res, "comments": comment_rows(res),
+                   "cost_usd": round(sum(r["cost_usd"] for r in res), 4)}
+            harness.write_json(ROOT / f"results/static_{a.partition}.json", out)
+            print(f"static {a.partition}: {json.dumps(out['summary'])} cost ${out['cost_usd']}")
         else:
-            dev = [inst[i] for i in sample("development", a.dev_n, a.seed)]
-            sel = [inst[i] for i in sample("selection", a.sel_n, a.seed)]
+            dev_ids, sel_ids = sample("development", a.dev_n, a.seed), sample("selection", a.sel_n, a.seed)
+            dev, sel = [inst[i] for i in dev_ids], [inst[i] for i in sel_ids]
+            harness.append_json(ROOT / f"results/evolution/{a.condition}.jsonl", {
+                "condition": a.condition, "seed": a.seed, "gated": not a.no_gate, "dev_ids": dev_ids, "sel_ids": sel_ids,
+                "excluded": {p: {k: len(v) for k, v in eligible(p)[1].items()} for p in ("development", "selection")}})
             lib, ran = [], 0
             save_snapshot(a.condition, 0, lib)
             try:
@@ -267,15 +316,14 @@ def main():
                     lib, rec = run_round(a.condition, lib, dev, sel, not a.no_gate)
                     save_snapshot(a.condition, r, lib)
                     ran = r
-                    print(f"round {r}: accept={rec['accept']} gained={rec['gained']} regressed={rec['regressed']} cost=${rec['cost_usd']}")
-            except harness.BudgetExceeded as ex:
-                print("STOPPED:", ex)
-                p = ROOT / f"results/evolution/{a.condition}.jsonl"
-                p.parent.mkdir(parents=True, exist_ok=True)
-                with p.open("a") as f:
-                    f.write(json.dumps({"condition": a.condition, "aborted": "budget_exceeded", "round": ran + 1}) + "\n")
+                    print(f"round {r}: accept={rec['accept']} gained={rec['gained']} regressed={rec['regressed']} "
+                          f"dev errors-as-failed={rec['dev']['pass_rate_errors_as_failed']} n_errors={rec['dev']['n_errors']} cost=${rec['cost_usd']}")
+            except (harness.StopRun, KeyboardInterrupt) as ex:
+                print("STOPPED:", repr(ex) if isinstance(ex, KeyboardInterrupt) else ex)
+                harness.append_json(ROOT / f"results/evolution/{a.condition}.jsonl",
+                                    {"condition": a.condition, "aborted": str(ex) or type(ex).__name__, "round": ran + 1})
             print(f"{ran}/{a.rounds} rounds completed; library has {len(lib)} skills; total spent ${harness.spent():.2f}")
-    except harness.BudgetExceeded as ex:
+    except harness.StopRun as ex:
         print("STOPPED:", ex)
 
 

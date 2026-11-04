@@ -37,7 +37,7 @@ def test_reproducible():
 
 
 # ---------------- Task 2: offline tests (no network, no Docker, no LLM) ----------------
-import socket, subprocess, tempfile, threading
+import os, socket, subprocess, tempfile, threading, time, warnings
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -62,7 +62,8 @@ KEY = "sk-ant-test-SECRETKEY123"
 @contextmanager
 def tmp_state():
     with tempfile.TemporaryDirectory() as d, mock.patch.object(harness, "LEDGER", Path(d) / "ledger.jsonl"), \
-            mock.patch.object(harness, "CACHE", Path(d) / "cache"), mock.patch.object(harness, "get_key", lambda: KEY):
+            mock.patch.object(harness, "CACHE", Path(d) / "cache"), mock.patch.object(harness, "RAW", Path(d) / "raw"), \
+            mock.patch.object(harness, "get_key", lambda: KEY):
         yield Path(d)
 
 
@@ -121,14 +122,21 @@ def test_sanitizer():
 def test_retrieval():
     lib = [{"id": "s1", "scope": "global", "text": "check inputs"}, {"id": "s2", "scope": "bug_fix", "text": "check null"},
            {"id": "s3", "scope": "feature", "text": "check docs"}, {"id": "s4", "scope": "global", "text": "check errors"}]
-    ids = lambda c, t, b=400: [s["id"] for s in evolve.retrieve(lib, t, c, b)]
-    assert ids("scoped", "bug_fix") == ["s1", "s2", "s4"] and ids("scoped", "other") == ["s1", "s4"]
+    ids = lambda c, t, b=400, l=lib: [s["id"] for s in evolve.retrieve(l, t, c, b)]
+    assert ids("scoped", "bug_fix") == ["s2", "s1", "s4"]  # type-scoped first, then global; excludes other types
+    assert ids("scoped", "other") == ["s1", "s4"]
     assert ids("static", "bug_fix") == []
     assert ids("global", "bug_fix") == ["s1", "s4"]  # global condition never sees non-global
     tok = lambda t: litellm.token_counter(model=reviewer.MODEL, text=t)
-    one = tok("check inputs")
-    got = evolve.retrieve(lib, "bug_fix", "scoped", one + 3)
-    assert [s["id"] for s in got] == ["s1"] and tok("\n".join(s["text"] for s in got)) <= one + 3
+    big = {"id": "g1", "scope": "global", "text": "word " * 60}
+    small = {"id": "g2", "scope": "global", "text": "tiny"}
+    typed = {"id": "t1", "scope": "bug_fix", "text": "typed skill"}
+    budget = tok("\n" + typed["text"] + "\n" + small["text"]) + 2
+    assert tok(big["text"]) > budget
+    got = evolve.retrieve([big, small, typed], "bug_fix", "scoped", budget)
+    assert [s["id"] for s in got] == ["t1", "g2"]  # skip-and-continue: oversize skill skipped, later small one kept
+    assert tok("\n".join(s["text"] for s in got)) <= budget
+    assert ids("global", "bug_fix", budget, [big, small]) == ["g2"]
 
 
 def test_ledger():
@@ -146,8 +154,18 @@ def test_ledger():
         harness.record("repair", "x", float("nan"))
         assert harness.spent() - 0.6 == 2 * harness.MAX_REPAIR_USD
         # unparseable / timed-out claude output is charged at the max
-        assert harness.parse_claude("garbage") == ("", harness.MAX_REPAIR_USD, False)
-        assert harness.parse_claude('{"type":"result","result":"hi","total_cost_usd":0.2}') == ("hi", 0.2, True)
+        g = harness.parse_claude("garbage")
+        assert g["cost"] == harness.MAX_REPAIR_USD and not g["ok"]
+        p = harness.parse_claude('{"type":"result","result":"hi","total_cost_usd":0.2,"is_error":true,"subtype":"x"}')
+        assert (p["text"], p["cost"], p["ok"], p["is_error"], p["subtype"]) == ("hi", 0.2, True, True, "x")
+        assert not harness.parse_claude('{"result":"no cost"}')["ok"]
+        # corrupt trailing ledger line is counted conservatively, not a crash
+        before = harness.spent()
+        with harness.LEDGER.open("a") as f:
+            f.write('{"kind": "repair", "inst')
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            assert harness.spent() == before + harness.MAX_REPAIR_USD and w
     with tmp_state():
         ts = [threading.Thread(target=lambda: [harness.record("k", "i", 0.01) for _ in range(50)]) for _ in range(8)]
         [t.start() for t in ts]; [t.join() for t in ts]
@@ -192,6 +210,23 @@ def test_reviewer():
         r = reviewer.review(INST, [])
     assert len(calls) == 2 and r["findings"] == [] and r["error"] and abs(r["cost_usd"] - 2 * (1000 * 3 + 100 * 15) / 1e6) < 1e-12
     assert calls[0]["temperature"] == 0
+    # C2b: the retry is a different request (more tokens, stricter instruction)
+    assert calls[1]["max_tokens"] > calls[0]["max_tokens"] and calls[1]["messages"] != calls[0]["messages"]
+    assert "valid JSON only" in calls[1]["messages"][-1]["content"]
+    # C2a: spend recorded per attempt, so a raised 2nd attempt cannot lose the 1st attempt's cost
+    seen = []
+    def second_raises(**kw):
+        if seen: raise RuntimeError("api down")
+        seen.append(1); return fake_resp("nope")
+    with tmp_state(), mock.patch.object(litellm, "completion", second_raises), mock.patch.object(litellm, "completion_cost", return_value=0.03):
+        try:
+            harness.run_review(INST, ["q"]); raise SystemExit("should raise")
+        except RuntimeError:
+            pass
+        assert abs(harness.spent() - 0.03) < 1e-12
+    # truncated outer list -> None (retry), never a stray inner list
+    assert reviewer.extract_list('[{"file": "a", "x": [1, 2], "issue_header": "h"') is None
+    assert reviewer.parse_findings('[{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c", "w": [1]},{"fi') is None
     seq = iter([fake_resp("nope"), fake_resp(GOOD)])
     with mock.patch.object(litellm, "completion", lambda **kw: next(seq)), mock.patch.object(litellm, "completion_cost", return_value=0.01):
         r = reviewer.review(INST, [])
@@ -212,24 +247,49 @@ def test_cache():
             assert len(n) == 2
             with mock.patch.object(harness, "CAP_USD", 0.0):  # a hit bypasses the budget check
                 assert harness.run_review(INST, ["s"])["cached"]
-        # errors are not cached
-        with mock.patch.object(litellm, "completion", lambda **kw: fake_resp("junk")), mock.patch.object(litellm, "completion_cost", return_value=0.01):
+        # C2c: an errored review that cost money IS cached; re-evaluating reuses it at $0
+        n.clear()
+        with mock.patch.object(litellm, "completion", lambda **kw: n.append(1) or fake_resp("junk")), mock.patch.object(litellm, "completion_cost", return_value=0.01):
             e = harness.run_review(INST, ["err"])
-        assert e["error"] and not list((harness.CACHE / "review").glob(f"{harness.key('review', INST['instance_id'], INST['commit_to_review']['patch_to_review'], ['err'], reviewer.MODEL)}.json"))
-        assert harness.spent() > s1  # but its cost was still recorded
+            spent_after = harness.spent()
+            e2 = harness.run_review(INST, ["err"])
+        assert e["error"] and len(n) == 2 and e2["error"] and e2["cached"] and e2["cost_usd"] == 0 and harness.spent() == spent_after
+        assert spent_after > s1
         # empty findings: no repair run, no container, zero cost, all failed
         rep = harness.repair_pr(INST, [])
         assert rep["cost_usd"] == 0 and rep["error"] is None and all(p["passed"] is False for p in rep["per_comment"])
-        # repair cache: errored not stored, ok stored and then hit at $0
+        # repair cache. billed error (cost>0, incl. unknown-cost max) is cached; unbilled infra error retries once, uncached
+        f = [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
         calls = []
-        def fake_repair(inst, findings, model):
-            calls.append(1)
-            return {"per_comment": [{"comment_index": 0, "passed": True}], "cost_usd": 0.5, "error": "boom" if len(calls) == 1 else None}
-        with mock.patch.object(harness, "run_repair", fake_repair):
-            f = [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+        ok = lambda: [{"comment_index": 0, "passed": True}]
+        def billed_err(inst, findings, model):
+            calls.append(1); return {"per_comment": ok(), "cost_usd": harness.MAX_REPAIR_USD, "error": "claude timed out"}
+        with mock.patch.object(harness, "run_repair", billed_err):
+            r1 = harness.repair_pr(INST, f); sp = harness.spent(); r2 = harness.repair_pr(INST, f)
+        assert len(calls) == 1 and r2["cached"] and r2["error"] and r2["cost_usd"] == 0 and harness.spent() == sp
+        calls.clear()
+        f2 = [{"file": "b.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+        def unbilled_err(inst, findings, model):
+            calls.append(1); return {"per_comment": ok(), "cost_usd": 0.0, "error": "docker cp failed"}
+        with mock.patch.object(harness, "run_repair", unbilled_err):
+            harness.repair_pr(INST, f2)
+            assert len(calls) == 2  # retried once
+            harness.repair_pr(INST, f2)
+            assert len(calls) == 4  # and not cached
+        # cache key covers the rendered prompt, harness version and spend cap
+        f = [{"file": "c.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+        calls.clear()
+        def good(inst, findings, model):
+            calls.append(1); return {"per_comment": ok(), "cost_usd": 0.5, "error": None}
+        with mock.patch.object(harness, "run_repair", good):
             harness.repair_pr(INST, f); harness.repair_pr(INST, f)
-            h = harness.repair_pr(INST, f)
-        assert len(calls) == 2 and h["cached"] and h["cost_usd"] == 0
+            assert len(calls) == 1
+            with mock.patch.object(harness, "HARNESS_VERSION", "2"):
+                harness.repair_pr(INST, f)
+            assert len(calls) == 2
+            with mock.patch.object(harness, "MAX_REPAIR_USD", 1.0):
+                harness.repair_pr(INST, f)
+            assert len(calls) == 3
     # budget is checked before a paid call
     with tmp_state(), mock.patch.object(harness, "CAP_USD", 0.0), mock.patch.object(litellm, "completion", _boom):
         try:
@@ -244,12 +304,18 @@ def test_sample_scrub_optimizer():
     except ValueError:
         pass
     a = evolve.sample("selection", 12, 3)
-    assert a == evolve.sample("selection", 12, 3) and len(a) == 12 and a != evolve.sample("selection", 12, 4)
+    assert a == evolve.sample("selection", 12, 3) and len(a) == 12 and sorted(a) != sorted(evolve.sample("selection", 12, 4))
     assert not set(a) & harness.NO_IMAGE
     inst = harness.instances()
     dev_all = splits["instance_ids"]["development"]
     big = evolve.sample("development", len(dev_all), 0)
-    assert len(big) == len(dev_all) - len(set(dev_all) & harness.NO_IMAGE) and not set(big) & harness.NO_IMAGE
+    by, ex = evolve.eligible("development")
+    assert sorted(big) == sorted(i for v in by.values() for i in v) and len(big) + len(ex["no_image"]) + len(ex["oversize"]) == len(dev_all)
+    assert all(len(inst[i]["commit_to_review"]["patch_to_review"]) <= reviewer.MAX_DIFF_CHARS for i in big)
+    assert all(len(inst[i]["commit_to_review"]["patch_to_review"]) > reviewer.MAX_DIFF_CHARS for i in ex["oversize"])
+    for part in ("development", "selection"):  # nested: smaller samples are prefixes of larger ones
+        full = evolve.sample(part, 40, 5)
+        assert all(evolve.sample(part, m, 5) == full[:m] for m in (1, 3, 7, 20, 39))
     ts = Counter(data.pr_type(inst[i]) for i in evolve.sample("development", 30, 0))
     assert len(ts) == 3 and sum(ts.values()) == 30
     # scrub
@@ -312,8 +378,134 @@ def test_round():
     assert rec["accept"] and len(lib) == 1
 
 
+class FakeSession:
+    """Stands in for DockerContainerSession: no Docker."""
+    def __init__(self, diff="", *a, **k):
+        self.diff, self.removed = diff, False
+    def start(self): pass
+    def remove(self, force=True): self.removed = True
+    def run_command(self, cmd, **k):
+        c = cmd if isinstance(cmd, str) else " ".join(cmd)
+        out = self.diff if c == "git diff" else "2.1.0 (Claude Code)" if "--version" in c else ""
+        return SimpleNamespace(returncode=0, stdout=out, stderr="", timed_out=False)
+
+
+def repair_with(claude_json, rc=0, diff="", passed=True, stderr=""):
+    sess = FakeSession(diff)
+    out = SimpleNamespace(stdout=claude_json, stderr=stderr, returncode=rc, timed_out=False)
+    with mock.patch.object(harness, "DockerContainerSession", lambda *a, **k: sess), mock.patch.object(harness, "ensure_image", lambda i: i), \
+            mock.patch.object(harness, "setup_claude_in_container", lambda s: None), mock.patch.object(harness, "invoke_claude", lambda *a: out), \
+            mock.patch.object(harness, "verify_with_test", lambda *a: (passed, "")):
+        try:
+            return harness.run_repair(INST, [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]), sess
+        finally:
+            pass
+
+
+def test_repair_failures():
+    cj = lambda **kw: json.dumps({"type": "result", "total_cost_usd": 0.4, **kw})
+    with tmp_state():
+        # C1: failed claude run with no diff is an infra error (passed None), not a failed test; cost kept
+        r, sess = repair_with(cj(is_error=True, subtype="error_during_execution", result="boom"), rc=1)
+        assert r["error"] and all(p["passed"] is None for p in r["per_comment"]) and r["cost_usd"] == 0.4 and sess.removed
+        assert harness.pr_passed(r) is None
+        # nonzero rc, unparseable output: error, charged at the max
+        r, _ = repair_with("not json", rc=1)
+        assert r["error"] and r["cost_usd"] == harness.MAX_REPAIR_USD and all(p["passed"] is None for p in r["per_comment"])
+        # budget-stop subtype is legitimate: the diff that exists is scored
+        r, _ = repair_with(cj(is_error=True, subtype="error_max_budget_usd", result="budget"), rc=1, diff="diff --git a b", passed=False)
+        assert r["error"] is None and {p["passed"] for p in r["per_comment"]} == {False}
+        r, _ = repair_with(cj(is_error=True, subtype="error_max_budget_usd"), rc=1, diff="", passed=True)
+        assert r["error"] is None and {p["passed"] for p in r["per_comment"]} == {False}  # nothing changed: failed, not error
+        # success with a diff is scored by the tests
+        r, _ = repair_with(cj(is_error=False, subtype="success", result="ok"), diff="diff --git a b", passed=True)
+        assert r["error"] is None and {p["passed"] for p in r["per_comment"]} == {True} and r["claude_version"].startswith("2.1")
+        assert list(harness.RAW.glob("*.json"))  # raw output kept
+        # auth / credit / rate-limit: fatal, stops the run, no phantom charge, no secret in the message
+        for msg in ("Invalid API key · Please run /login", "Credit balance is too low", "rate limit reached", "usage limit exceeded"):
+            spent0 = harness.spent()
+            try:
+                with mock.patch.object(harness, "CACHE", harness.CACHE / msg[:5]):
+                    sess = FakeSession()
+                    out = SimpleNamespace(stdout=cj(is_error=True, result=f"{msg} {KEY}"), stderr="", returncode=1, timed_out=False)
+                    with mock.patch.object(harness, "DockerContainerSession", lambda *a, **k: sess), mock.patch.object(harness, "ensure_image", lambda i: i), \
+                            mock.patch.object(harness, "setup_claude_in_container", lambda s: None), mock.patch.object(harness, "invoke_claude", lambda *a: out):
+                        harness.repair_pr(INST, [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}])
+                raise SystemExit("fatal error not raised: " + msg)
+            except harness.FatalRunError as e:
+                assert KEY not in str(e) and harness.spent() == spent0 and sess.removed
+        assert KEY not in "".join(p.read_text() for p in harness.RAW.glob("*.json"))
+
+
+def test_evaluate_stops():
+    insts = [harness.instances()[i] for i in evolve.sample("development", 10, 0)]
+    calls = []
+    def safe(inst, lib, cond):
+        calls.append(inst["instance_id"])
+        if len(calls) == 1:
+            raise harness.BudgetExceeded("cap")
+        time.sleep(0.05)
+        return {"instance_id": inst["instance_id"], "passed": True}
+    out = []
+    with mock.patch.object(evolve, "_safe", safe), mock.patch.object(harness, "WORKERS", 1):
+        try:
+            evolve.evaluate(insts, [], "static", out); raise SystemExit("no stop")
+        except harness.BudgetExceeded:
+            pass
+    assert len(calls) < 10 and len(out) == len(calls) - 1  # queued work cancelled; in-flight results kept
+    calls.clear(); out.clear()
+    def interrupt(inst, lib, cond):
+        calls.append(1)
+        if len(calls) == 2:
+            raise KeyboardInterrupt
+        time.sleep(0.05)
+        return {"instance_id": inst["instance_id"], "passed": True}
+    with mock.patch.object(evolve, "_safe", interrupt), mock.patch.object(harness, "WORKERS", 1):
+        try:
+            evolve.evaluate(insts, [], "static", out); raise SystemExit("no interrupt")
+        except KeyboardInterrupt:
+            pass
+    assert len(calls) < 10 and len(out) >= 1
+
+
+def test_guards_and_summary():
+    # I1: pilot refuses test-partition (and any non dev/selection) instances, before any key/ledger/Docker activity
+    test_id = splits["instance_ids"]["test"][0]
+    with tmp_state(), mock.patch.object(harness, "setup", side_effect=AssertionError("pilot got past the partition guard")):
+        try:
+            harness.pilot(test_id); raise SystemExit("pilot ran on test")
+        except SystemExit as e:
+            assert "refusing" in str(e)
+        assert not harness.LEDGER.exists()
+    # I2: setup aborts on an empty key
+    with tempfile.TemporaryDirectory() as d, mock.patch.object(harness, "ENV_FILE", Path(d) / "none.env"), \
+            mock.patch.dict("os.environ", {}, clear=False), mock.patch.object(harness, "LEDGER", Path(d) / "l.jsonl"):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        try:
+            harness.setup(); raise SystemExit("setup accepted empty key")
+        except SystemExit as e:
+            assert "ANTHROPIC_API_KEY" in str(e)
+        assert not harness.LEDGER.exists()
+        harness.get_key.cache_clear()
+    # I7: both rates, errors listed; errored PR comments count as failed in the main number
+    ids = evolve.sample("development", 2, 0)
+    i0, i1 = [harness.instances()[i] for i in ids]
+    n0, n1 = len(i0["reference_review_comments"]), len(i1["reference_review_comments"])
+    res = [{"instance_id": ids[0], "repo": i0["repo"], "passed": True, "per_comment": [{"comment_index": k, "passed": True} for k in range(n0)]},
+           {"instance_id": ids[1], "repo": i1["repo"], "passed": None, "per_comment": []}]
+    sm = evolve.summarize(res)
+    assert sm["n_errors"] == 1 and sm["errored_prs"] == [ids[1]] and sm["pass_rate_excl_errors"] == 1.0
+    assert sm["pass_rate_errors_as_failed"] == n0 / (n0 + n1)
+    rows = evolve.comment_rows(res)
+    assert sum(r["error"] for r in rows) == n1 and not any(r["passed"] for r in rows if r["error"]) and len(rows) == n0 + n1
+    # minor: results/ writes are scrubbed and atomic
+    with tmp_state() as d:
+        harness.write_json(d / "r" / "x.json", {"k": KEY}); harness.append_json(d / "r" / "y.jsonl", {"k": KEY})
+        assert KEY not in (d / "r" / "x.json").read_text() + (d / "r" / "y.jsonl").read_text() and not list((d / "r").glob(".*tmp"))
+
+
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
     test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_reviewer(); test_cache()
-    test_sample_scrub_optimizer(); test_stats(); test_round()
+    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops(); test_guards_and_summary()
     print("all tests passed")
