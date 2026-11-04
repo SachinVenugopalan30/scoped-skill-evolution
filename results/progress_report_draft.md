@@ -4,17 +4,15 @@
 
 *Progress report (intermediate draft of the final report). To be converted to the ACM SIGKDD `acmart` template (`sigconf`, `authorversion`, `nonacm`; 8 pages excluding references and appendices) before submission. Every number below comes from `results/` (`summary.json`, `census.json`, `splits.json`, `released_tools.csv`) and `runs/ledger.jsonl`.*
 
-> **Section status.** Complete or near-complete: Data, Methods. Drafted from the proposal, for the team to refine: Abstract, Introduction, Related Work. Initial results only: Results, Discussion. **To be filled: Conclusion, and the final results.**
+> **Section status.** Complete or near-complete for this stage: Abstract, Introduction, Data, Methods. Drafted from the proposal, for the team to expand: Related Work. Initial results only: Results, Discussion. **To be filled: Conclusion** (a placeholder is allowed at the progress stage).
 
 ---
 
 ## Abstract
 
-*[Draft, to be finalized once the main experiments are done.]*
-
 Automated code review agents are typically static after deployment: they do not retain lessons from earlier reviews, even when later test results show whether their feedback was useful. We study whether a self-evolving review agent can improve by converting sanitized, test-based feedback into reusable textual skills, and whether organizing those skills into a global tier and PR-type-scoped tiers (bug fix, feature, other) improves generalization to unseen repositories compared with a single global skill library. Both variants use the same validation gate, which accepts a candidate skill edit only if it helps on a held-out selection set without causing more than one regression. We evaluate on the c-CRAB benchmark, where a review is scored by whether a fixed repair agent's fix passes an executable test derived from a human review comment, using repository-disjoint development, selection and locked test splits.
 
-At this stage we have built and verified the full pipeline (data preparation, reviewer, repair-and-test harness, skill library, sanitizer, optimizer and validation gate) and ran a small preliminary study (12 development PRs, 8 selection PRs, one evolution round per condition, $10.69 in API spend). A static reviewer without learned skills passes 4 of 16 comments (25.0%), comparable to released tools on the same comments, and both conditions' first candidate edits were rejected by the gate. These runs establish feasibility and measured costs but are too small to support or refute our hypothesis. *[Final results: TBD.]*
+At this stage we have built and verified the full pipeline (data preparation, reviewer, repair-and-test harness, skill library, sanitizer, optimizer and validation gate) and ran a small preliminary study (12 development PRs, 8 selection PRs, one evolution round per condition, $10.69 in API spend). A static reviewer without learned skills passes 4 of 16 comments (25.0%), comparable to released tools on the same comments, and both conditions' first candidate edits were rejected by the gate. These runs establish feasibility and measured costs but are too small to support or refute our hypothesis. Next, we will measure run-to-run noise, run the full static baseline and multi-round evolution for both conditions, and score the frozen system once on the locked test partition and on Code Review Bench.
 
 ---
 
@@ -119,7 +117,7 @@ A spend ledger with a hard cap is checked before every paid call; results are ca
 
 ## 5. Results
 
-*[Preliminary. Small single-run samples; not evidence for or against the hypothesis. Final results: TBD.]*
+*[Initial results from small single-run samples; not evidence for or against the hypothesis. Full experiments are planned in Section 6.5.]*
 
 ### 5.1 Static baseline
 On 12 development PRs (16 comments) the static reviewer passes 4 of 16 comments, **25.0%** (repository-clustered bootstrap 95% CI 4.8% to 42.9%). One PR hit the 600-second repair timeout and counts as failed (26.7% if excluded). On the same 16 comments, the released tools score as follows (Figure 1):
