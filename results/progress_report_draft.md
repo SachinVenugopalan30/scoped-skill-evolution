@@ -83,7 +83,16 @@ Both libraries therefore remain empty and the two conditions are identical in ou
 - **Total spend: $10.69** (37 repairs, 37 reviews, 2 optimizer calls), against a self-imposed $25 limit and a $22 code cap.
 - **Mean cost per PR evaluation: $0.29** (review about $0.03, repair about $0.26). The $1.50 timeout is counted at its maximum because the true cost is unknown. Oversize PRs are excluded and would cost more.
 - **Time.** About 20 minutes for 12 PRs on an arm64 laptop, because the c-CRAB images are amd64-only and run under emulation, with 2 parallel workers.
-- **Projection for the full proposal (estimate, assumptions stated).** At $0.29 per PR evaluation, one evolution round with the full partitions (92 dev, 37 selection baseline, 37 selection candidate) is about 166 evaluations per condition, roughly $48. Two evolved conditions over 5 rounds, plus the locked-test runs (55 PRs × 4 conditions × 3 repeats = 660 evaluations, about $190), puts the full experiment on the order of **$600 to $800**. This is far above a $25 budget, so we need to cut scope or get credits (see §7).
+- **Projection for the full proposal (rough worst-case estimate).** Assumptions: $0.29 per PR evaluation, **5 evolution rounds (our assumption; the proposal does not fix a number)**, and no cache savings beyond reusing the previous round's selection baseline.
+
+| Item | Evaluations | Cost |
+|---|---|---|
+| Global and scoped gated evolution (round 1 is 92 dev + 37 baseline + 37 candidate; later rounds at most 92 + 37; shared first-round work counted once) | 1,235 | about $358 |
+| Scoped no-gate ablation (dev only, 5 rounds) | 460 | about $133 |
+| Locked test (55 PRs × 4 conditions × 3 repeats) | 660 | about $191 |
+| **Total** | **2,355** | **about $680** (about $550 without the ablation) |
+
+  It would be lower if the gate rejects most rounds, because rejected rounds with an unchanged library reuse the cache. It is far above a $25 budget, so we need to cut scope or get credits (see §7).
 
 ## 6. Deviations and risks
 - Today's runs use 12 dev and 8 selection PRs. The proposal's samples are the full partitions.
