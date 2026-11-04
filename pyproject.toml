@@ -1,0 +1,5 @@
+[project]
+name = "scoped-skill-evolution"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = ["litellm", "numpy", "matplotlib", "python-dotenv"]
