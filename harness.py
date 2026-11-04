@@ -14,7 +14,7 @@ from execution.container_runtime import DockerContainerSession, docker_image_exi
 from pipeline.agent_resolver import CLAUDE_TIMEOUT, build_tool_prompt, setup_claude_in_container, verify_with_test  # noqa: E402
 
 os.environ.setdefault("DOCKER_DEFAULT_PLATFORM", "linux/amd64")
-ENV_FILE = ROOT.parent / ".env"
+ENV_FILE = ROOT / ".env"
 TESTGEN_ZIP = VENDOR / "raw_results_compressed/testgen_combined.zip"
 LEDGER = ROOT / "runs/ledger.jsonl"
 CACHE = ROOT / "runs/cache"
@@ -41,7 +41,7 @@ def setup():
     load_dotenv(ENV_FILE)
     get_key.cache_clear()
     if not get_key():
-        raise SystemExit("ANTHROPIC_API_KEY is empty or missing: set it in the parent .env or the environment")
+        raise SystemExit("ANTHROPIC_API_KEY is empty or missing: set it in .env (project root) or the environment")
 
 
 def scrub(text, key=None):
