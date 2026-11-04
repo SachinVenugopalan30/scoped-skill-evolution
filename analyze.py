@@ -5,6 +5,8 @@ comment counts as failed."""
 import csv, json, zipfile
 from pathlib import Path
 
+import numpy as np
+
 import data
 
 ROOT = Path(__file__).parent
@@ -22,6 +24,38 @@ def extract():
 
 def results(d):
     return [json.loads(p.read_text()) for p in sorted((RUNS / d).glob("*/result.json"))]
+
+
+def _clusters(rows):
+    """repo -> [passed, total] over rows {repo, passed}."""
+    c = {}
+    for r in rows:
+        k = c.setdefault(r["repo"], [0, 0])
+        k[0] += bool(r["passed"]); k[1] += 1
+    return c
+
+
+def bootstrap_ci(rows, n=10000, seed=0):
+    """Repo-clustered bootstrap, 95% percentile CI on comment-level pass rate."""
+    c = np.array(list(_clusters(rows).values()), dtype=float)
+    idx = np.random.default_rng(seed).integers(0, len(c), (n, len(c)))
+    rates = c[idx, 0].sum(1) / c[idx, 1].sum(1)
+    return {"rate": c[:, 0].sum() / c[:, 1].sum(), "lo": float(np.percentile(rates, 2.5)), "hi": float(np.percentile(rates, 97.5))}
+
+
+def paired_permutation(a, b, n=10000, seed=0):
+    """Two-sided sign-flip test on comment-paired pass differences (a - b), flipping whole repo clusters.
+    a, b: rows {instance_id, comment_index, repo, passed}; paired on (instance_id, comment_index)."""
+    bk = {(r["instance_id"], r["comment_index"]): r["passed"] for r in b}
+    d = {}
+    for r in a:
+        k = (r["instance_id"], r["comment_index"])
+        if k in bk:
+            d[r["repo"]] = d.get(r["repo"], 0) + int(bool(r["passed"])) - int(bool(bk[k]))
+    d = np.array(list(d.values()), dtype=float)
+    signs = np.random.default_rng(seed).choice([-1.0, 1.0], (n, len(d)))
+    perm = np.abs(signs @ d)
+    return float((1 + (perm >= abs(d.sum()) - 1e-9).sum()) / (n + 1))
 
 
 def main():
