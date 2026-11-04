@@ -37,7 +37,7 @@ def test_reproducible():
 
 
 # ---------------- Task 2: offline tests (no network, no Docker, no LLM) ----------------
-import os, socket, subprocess, tempfile, threading, time, warnings
+import os, socket, sys, subprocess, tempfile, threading, time, warnings
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -556,8 +556,63 @@ def test_guards_and_summary():
         assert KEY not in (d / "r" / "x.json").read_text() + (d / "r" / "y.jsonl").read_text() and not list((d / "r").glob(".*tmp"))
 
 
+def test_image_cleanup():
+    calls = []
+    def fake_run(cmd, **k):
+        calls.append(cmd); return SimpleNamespace(returncode=0, stdout="", stderr="")
+    a, b, c = "foo__bar-1@abc1234", "Baz__Qux-2@def5678", "never__used-3@0000000"
+    with mock.patch.object(subprocess, "run", fake_run):
+        assert harness.remove_image(a)
+    assert calls == [["docker", "rmi", "reviewbench/foo__bar-1"], ["docker", "rmi", "ghcr.io/c-crab-benchmark/foo__bar-1:latest"]]
+    flat = " ".join(" ".join(x) for x in calls)
+    assert not any(w in flat for w in ("prune", "-f", "--force", "*")) 
+    # only ids handed out by ensure_image are removed, once
+    calls.clear()
+    with mock.patch.object(harness, "docker_image_exists", lambda i: True):
+        harness.ensure_image(a); harness.ensure_image(b)
+    assert calls == []  # tracking alone runs nothing
+    with mock.patch.object(subprocess, "run", fake_run):
+        assert harness.cleanup_images() == 2
+        assert harness.cleanup_images() == 0
+    assert sorted(x[2] for x in calls) == sorted(["reviewbench/foo__bar-1", "ghcr.io/c-crab-benchmark/foo__bar-1:latest",
+                                                  "reviewbench/baz__qux-2", "ghcr.io/c-crab-benchmark/baz__qux-2:latest"])
+    assert not any("never" in x[2] for x in calls)
+    # failures never raise; "no such image" is silent, other errors warn
+    for res in (SimpleNamespace(returncode=1, stdout="", stderr="Error: No such image: x"),
+                SimpleNamespace(returncode=1, stdout="", stderr="permission denied"), RuntimeError("docker missing")):
+        def bad(cmd, **k):
+            if isinstance(res, Exception): raise res
+            return res
+        with mock.patch.object(subprocess, "run", bad), warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            assert harness.remove_image(a) is False
+            assert bool(w) == (not (hasattr(res, "stderr") and "No such image" in res.stderr))
+    # cleanup runs after stops, in every entry point
+    for exc in (harness.BudgetExceeded("cap"), harness.FatalRunError("auth")):
+        for argv in (["evolve.py", "static", "--partition", "development", "--n", "2"],
+                     ["evolve.py", "evolve", "--condition", "scoped", "--dev-n", "2", "--sel-n", "2", "--rounds", "1"]):
+            n = []
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(harness, "setup", lambda: None), \
+                    mock.patch.object(evolve, "sample", side_effect=exc), mock.patch.object(harness, "cleanup_images", lambda: n.append(1)):
+                evolve.main()
+            assert n == [1], (argv[1], exc)
+    n = []
+    with tmp_state(), mock.patch.object(harness, "setup", lambda: None), mock.patch.object(harness, "run_review", side_effect=harness.BudgetExceeded("cap")), \
+            mock.patch.object(harness, "cleanup_images", lambda: n.append(1)):
+        try:
+            harness.pilot(splits["instance_ids"]["development"][0]); raise SystemExit("pilot swallowed stop")
+        except harness.BudgetExceeded:
+            pass
+    assert n == [1]
+    # each finished round cleans up once (not mid-round)
+    n = []
+    with mock.patch.object(harness, "cleanup_images", lambda: n.append(1)):
+        test_round()
+    assert n == [1, 1, 1], n  # test_round runs 3 rounds
+
+
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
     test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_reviewer(); test_cache()
-    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops(); test_guards_and_summary()
+    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops(); test_guards_and_summary(); test_image_cleanup()
     print("all tests passed")

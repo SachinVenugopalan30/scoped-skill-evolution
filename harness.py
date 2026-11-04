@@ -160,7 +160,43 @@ def image_slug(iid):
     return iid.split("@")[0].lower()
 
 
+_used_images, _img_lock = set(), threading.Lock()
+
+
+def image_names(iid):
+    """The only two tags we ever remove for an instance."""
+    return [get_docker_image_name(iid), f"ghcr.io/c-crab-benchmark/{image_slug(iid)}:latest"]
+
+
+def remove_image(iid):
+    """docker rmi of exactly the two tags above. No prune, no -f, no wildcards. Failures only warn. True if anything was removed."""
+    removed = False
+    for name in image_names(iid):
+        try:
+            r = subprocess.run(["docker", "rmi", name], capture_output=True, text=True)
+            if r.returncode == 0:
+                removed = True
+            elif "no such image" not in (r.stderr or "").lower():
+                warnings.warn(f"could not remove image {name}: {scrub(r.stderr or '')[:200]}")
+        except Exception as e:
+            warnings.warn(f"could not remove image {name}: {type(e).__name__}: {e}")
+    return removed
+
+
+def cleanup_images():
+    """Remove every image ensure_image handed out in this run. Call between rounds/at the end, never mid-round."""
+    with _img_lock:
+        ids = sorted(_used_images)
+        _used_images.clear()
+    n = sum(remove_image(i) for i in ids)
+    if ids:
+        print(f"removed {n}/{len(ids)} benchmark images")
+    return n
+
+
 def ensure_image(iid):
+    with _img_lock:
+        _used_images.add(iid)
     img = get_docker_image_name(iid)
     if docker_image_exists(img):
         return img
@@ -335,8 +371,11 @@ def pilot(iid, skills=()):
         raise SystemExit(f"{iid} is not in the development or selection partition: refusing")
     setup()
     inst = instances()[iid]
-    rv = run_review(inst, list(skills))
-    rep = repair_pr(inst, rv["findings"])
+    try:
+        rv = run_review(inst, list(skills))
+        rep = repair_pr(inst, rv["findings"])
+    finally:
+        cleanup_images()
     print(f"review cost ${rv['cost_usd']:.4f} findings {len(rv['findings'])} error {rv.get('error')}")
     print(f"repair cost ${rep['cost_usd']:.4f} duration {rep['duration_s']}s claude {rep['claude_version']} error {rep['error']}")
     print("per-test:", rep["per_comment"], "| PR passed:", pr_passed(rep))

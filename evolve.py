@@ -224,6 +224,7 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None):
     rec["run_id"] = run_id
     rec["cost_usd"] = round(harness.spent() - s0, 4)
     harness.append_json(ROOT / f"results/evolution/{condition}.jsonl", rec)
+    harness.cleanup_images()  # round is over: selection baseline and candidate have both used the images
     return (cand if rec["accept"] else library), rec
 
 
@@ -327,6 +328,8 @@ def main():
             print(f"{ran}/{a.rounds} rounds completed; library has {len(lib)} skills; total spent ${harness.spent():.2f}")
     except harness.StopRun as ex:
         print("STOPPED:", ex)
+    finally:
+        harness.cleanup_images()  # also after stops and Ctrl-C
 
 
 if __name__ == "__main__":
