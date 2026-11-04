@@ -1,0 +1,760 @@
+{
+ "condition": "static",
+ "partition": "development",
+ "seed": 0,
+ "n_requested": 12,
+ "n_done": 12,
+ "excluded": {
+  "no_image": {
+   "n": 0,
+   "ids": []
+  },
+  "oversize": {
+   "n": 3,
+   "ids": [
+    "dbt-labs__dbt-core-7276@acfae95",
+    "goauthentik__authentik-12630@7fed46f",
+    "microsoft__autogen-5843@e07fb7a"
+   ]
+  }
+ },
+ "summary": {
+  "n_prs": 12,
+  "n_errors": 1,
+  "errored_prs": [
+   "sympy__sympy-11818@ab1bcd5"
+  ],
+  "n_comments": 16,
+  "passed": 4,
+  "pass_rate_errors_as_failed": 0.25,
+  "pass_rate_excl_errors": 0.26666666666666666
+ },
+ "prs": [
+  {
+   "instance_id": "sympy__sympy-11818@ab1bcd5",
+   "repo": "sympy/sympy",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sympy/sets/fancysets.py",
+     "issue_header": "Incorrect Cartesian product used to embed real set into complex plane",
+     "issue_content": "The code uses `other * FiniteSet(0)` to embed a real subset into the complex plane, producing pairs (x, 0). However, `self.sets` for a Cartesian ComplexRegion is a product of intervals for (x, y), so comparing `other * FiniteSet(0)` against `self.sets` with `is_subset` is correct in principle. But for a polar ComplexRegion (`self.polar=True`), `self.sets` represents (r, theta) pairs, not (x, y) pairs, so embedding the real interval as `other * FiniteSet(0)` (meaning r=x, theta=0) may accidentally work for non-negative reals but will fail for negative reals (which need r=|x|, theta=pi). The code does not handle the polar case correctly and can return a wrong `ComplexRegion` with mixed semantics.",
+     "start_line": 1444,
+     "end_line": 1453
+    },
+    {
+     "file": "sympy/sets/fancysets.py",
+     "issue_header": "Union with non-real, non-ComplexRegion sets returns None instead of delegating",
+     "issue_content": "The old code `if self == S.Complexes: return self` handled the case where `other` is not a subset of the reals (e.g., a FiniteSet containing a matrix or infinity) by falling through to `return None`. The new code only handles `other.is_subset(S.Reals)` and also returns `None` for everything else, but the original guard `if self == S.Complexes: return self` was specifically needed so that `Union(S.Complexes, X)` returns `S.Complexes` when X is already contained in S.Complexes (e.g., any ComplexRegion). Removing it means `Union(S.Complexes, some_complex_region)` may no longer simplify to `S.Complexes`.",
+     "start_line": 1444,
+     "end_line": 1453
+    },
+    {
+     "file": "sympy/sets/tests/test_fancysets.py",
+     "issue_header": "Test assertions rewritten to obscure the actual expected value",
+     "issue_content": "`Union.reduce(Union(c1, Interval(2, 4), evaluate=False).args)` is circular: it just re-evaluates the union, so the test always passes regardless of what the result actually is. The test should assert a concrete, independently-computed expected value (e.g., a specific `ComplexRegion`) to actually verify correctness of the new behaviour.",
+     "start_line": 596,
+     "end_line": 597
+    },
+    {
+     "file": "sympy/sets/tests/test_fancysets.py",
+     "issue_header": "Test assertions for oo and matrix union with S.Complexes are wrong",
+     "issue_content": "`Union(S.Complexes, FiniteSet(oo)) != S.Complexes` and `Union(S.Complexes, FiniteSet(eye(4))) != S.Complexes` assert that these unions do NOT simplify to S.Complexes. While `oo` and `eye(4)` are not complex numbers, asserting `!=` without checking what the result actually is provides little value and may mask regressions. More importantly, if the intent is that `S.Complexes` absorbs subsets of itself, these tests should instead verify the union equals some expected set, not just that it differs from S.Complexes.",
+     "start_line": 702,
+     "end_line": 703
+    },
+    {
+     "file": "sympy/sets/fancysets.py",
+     "issue_header": "Removal of `if other is S.Reals: return other` breaks _intersect fast path",
+     "issue_content": "The removed lines `if other is S.Reals: return other` provided a fast-path for intersecting any ComplexRegion with S.Reals. The subsequent `if other.is_subset(S.Reals)` block should handle this case too, but it builds `new_interval` by iterating `self.a_interval` and `self.b_interval`, which may be more expensive or behave differently for S.Reals itself (S.Reals may not be a ProductSet). Removing the guard without verifying that the general path handles `other is S.Reals` correctly risks a regression or an exception.",
+     "start_line": 1411,
+     "end_line": 1411
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": null
+    }
+   ],
+   "passed": null,
+   "error": "claude timed out",
+   "cost_usd": 0.0
+  },
+  {
+   "instance_id": "pandas-dev__pandas-43930@fef88a7",
+   "repo": "pandas-dev/pandas",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "pandas/_libs/index.pyx",
+     "issue_header": "Duplicate `need_unique_check` assignment in ExtensionEngine.__init__",
+     "issue_content": "In `ExtensionEngine.__init__`, `self.need_unique_check = True` is set twice (lines ~800 and ~802). The second assignment is redundant and suggests a copy-paste error where `self.need_monotonic_check = True` was intended for one of them. Fix by removing the duplicate line.",
+     "start_line": 792,
+     "end_line": 800
+    },
+    {
+     "file": "pandas/_libs/index.pyx",
+     "issue_header": "ExtensionEngine.get_loc falls through to _get_loc_duplicates even when unique",
+     "issue_content": "In `ExtensionEngine.get_loc`, after the `over_size_threshold` branch, the code has:\n```\nif not self.unique:\n    return self._get_loc_duplicates(val)\nreturn self._get_loc_duplicates(val)\n```\nBoth branches call `_get_loc_duplicates`, so the uniqueness check is useless. When the index is unique and not over the size threshold, it should do a direct lookup (e.g. via `_maybe_get_bool_indexer`) rather than always going through the duplicate path. This mirrors the same bug in `NullableEngine.get_loc`.",
+     "start_line": 870,
+     "end_line": 885
+    },
+    {
+     "file": "pandas/core/arrays/floating.py",
+     "issue_header": "FloatingArray.isna override ignores mask, breaking NA semantics",
+     "issue_content": "`FloatingArray.isna` is overridden to return `self._mask | np.isnan(self._data)`. This means a value that is masked (i.e. `pd.NA`) but whose underlying data happens to be non-NaN will still be reported as NA (correct), but more importantly a value whose underlying float data is `NaN` but whose mask is `False` will also be reported as NA. The parent `BaseMaskedArray.isna` already returns `self._mask`, which is the authoritative source of missingness. Returning `self._mask | np.isnan(self._data)` conflates two different NA representations and can cause incorrect behavior (e.g. double-counting NaN in `value_counts`). Remove this override and rely on the parent implementation.",
+     "start_line": 429,
+     "end_line": 431
+    },
+    {
+     "file": "pandas/tests/base/test_misc.py",
+     "issue_header": "Duplicate `assert res_deep > res` statement",
+     "issue_content": "In `test_memory_usage`, the assertion `assert res_deep > res` appears twice consecutively inside the `elif is_object or is_categorical or is_string:` branch. The second copy is a copy-paste mistake and should be removed.",
+     "start_line": 94,
+     "end_line": 96
+    },
+    {
+     "file": "pandas/core/indexes/base.py",
+     "issue_header": "_na_value changed from class attribute to cache_readonly property, breaking subclasses",
+     "issue_content": "`_na_value` was a simple class-level attribute (`float | NaTType = np.nan`) that subclasses (e.g. `DatetimeIndex`, `TimedeltaIndex`) override with `NaT`. Converting it to a `@cache_readonly` property on the base class means subclass overrides as plain class attributes will be shadowed by the descriptor, so those subclasses will no longer return their custom `_na_value`. Either keep it as a plain class attribute (and override `_na_value` in `__new__`/`__init__` for EA-backed indexes), or ensure all subclasses that previously set `_na_value = NaT` are updated to use a property override.",
+     "start_line": 2585,
+     "end_line": 2592
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0
+  },
+  {
+   "instance_id": "skypilot-org__skypilot-1489@1430d74",
+   "repo": "skypilot-org/skypilot",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sky/skylet/providers/aws/config_v2.py",
+     "issue_header": "Use of undefined variable `profile` before assignment",
+     "issue_content": "In `_configure_iam_role`, when `IamInstanceProfile` is already present in `head_node_config`, the code tries to use `profile.arn` (line 251) but `profile` has never been defined in that branch. The intent is to read the ARN from the existing config entry. Fix by extracting the ARN from `head_node_config['IamInstanceProfile']` directly, e.g.:\n```python\nif 'IamInstanceProfile' in head_node_config:\n    _set_config_info(head_instance_profile_src='config')\n    iam_profile = head_node_config['IamInstanceProfile']\n    for node_type in config['available_node_types'].values():\n        node_type['node_config']['IamInstanceProfile'] = iam_profile\n    return config\n```",
+     "start_line": 248,
+     "end_line": 252
+    },
+    {
+     "file": "sky/clouds/aws.py",
+     "issue_header": "SSO detection checks stderr word list instead of substring",
+     "issue_content": "`'SSO' in proc.stderr.decode().split()` splits on whitespace and checks for the exact token `'SSO'`. AWS CLI error messages typically contain mixed-case strings like `'sso'` or phrases such as `'SSO session'`, so an exact token match against the uppercase word `'SSO'` is fragile and will miss most real SSO errors. Use a case-insensitive substring check instead:\n```python\nif 'sso' in proc.stderr.decode().lower():\n```",
+     "start_line": 322,
+     "end_line": 325
+    },
+    {
+     "file": "sky/clouds/aws.py",
+     "issue_header": "`_is_sso_identity` runs `aws configure list` a second time redundantly",
+     "issue_content": "`check_credentials` already runs `aws configure list` and parses its output. `get_credential_file_mounts` then calls `_is_sso_identity`, which runs the same subprocess again. This doubles the latency on every credential-file-mounts call and can produce inconsistent results if the environment changes between calls. The SSO flag should be determined once (e.g., cached or returned alongside the credential check result) and reused.",
+     "start_line": 358,
+     "end_line": 374
+    },
+    {
+     "file": "sky/skylet/providers/aws/config_v2.py",
+     "issue_header": "IAM inline policy references `profile.arn` before profile has roles attached",
+     "issue_content": "The inline policy `IAMSelfReadWritePolicy` is put on the role with `\"Resource\": profile.arn` (line 302), but `profile.add_role` (and the subsequent 15-second wait) happens *after* this block. At the time the policy is written, `profile` exists but has no roles yet, so `profile.arn` is valid; however the logical ordering is confusing and the `iam_self_read_write_policy_doc` block (lines 285-302) is placed inside the `if role is None` branch, meaning it is only created when the role is brand-new. If the role already exists but the inline policy was never attached (e.g., partial failure), the policy will never be re-applied. Move the inline policy attachment outside the `if role is None` block so it is idempotent.",
+     "start_line": 296,
+     "end_line": 302
+    },
+    {
+     "file": "tests/run_smoke_tests.sh",
+     "issue_header": "Option detection regex `--*` matches any argument starting with `--`",
+     "issue_content": "The condition `[[ \"$test\" == \"--*\" ]]` uses glob matching, so it matches *any* string starting with `--`, not just `--runslow` or `--sso`. The inner check `[[ \"$test\" == \"--runslow\" ]] || [[ \"$test\" == \"--sso\" ]] || echo \"Unknown option: $test\"` only prints a warning but still proceeds, silently passing an unrecognised flag to pytest. The branch should also handle the case where `$test` is a pytest option that should be forwarded differently from a test name. At minimum, the glob should be `--?*` and the unknown-option path should exit non-zero.",
+     "start_line": 15,
+     "end_line": 18
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    },
+    {
+     "comment_index": 2,
+     "passed": true
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0
+  },
+  {
+   "instance_id": "sympy__sympy-18605@a356458",
+   "repo": "sympy/sympy",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sympy/tensor/indexed.py",
+     "issue_header": "Incorrect logic inversion: non-integer check now passes when integrality is unknown",
+     "issue_content": "The original condition `not (range.is_integer or range is S.Infinity)` raises TypeError when the range is definitely NOT an integer and NOT Infinity. The replacement `fuzzy_and([fuzzy_not(range.is_integer), fuzzy_not(range is S.Infinity)])` evaluates to True (raises) only when BOTH conditions are definitely True \u2014 i.e., when `range.is_integer` is definitely False AND `range is not S.Infinity`. However, `fuzzy_not(range.is_integer)` returns None when `range.is_integer` is None (unknown), so `fuzzy_and` returns None in that case, and the TypeError is silently skipped. This is the intended fix for the issue (allowing symbols with unknown integrality), but the tuple range path (lines 657-662) still calls `is_integer` checks that raise TypeError for non-integer bounds \u2014 those should be made consistent. More critically, the new condition is semantically equivalent to `range.is_integer is False and range is not S.Infinity`, which is correct for the fix, but should be written more clearly as `fuzzy_bool(range.is_integer) is False and range is not S.Infinity` to make the intent explicit and avoid subtle fuzzy logic bugs.",
+     "line": 666
+    },
+    {
+     "file": "sympy/tensor/indexed.py",
+     "issue_header": "Tuple range bounds still reject non-integer symbols",
+     "issue_content": "The fix only addresses the single `Expr` range path. When `range` is a sequence/Tuple, the code at lines 657-662 checks `bound.is_integer` for each bound and raises TypeError if it is not True. This means `Idx('i', (m, n))` where `m` and `n` are plain symbols (with unknown integrality) still raises TypeError, inconsistent with the fix applied to the scalar range path. The same fuzzy logic approach should be applied there: only raise if `bound.is_integer` is definitely False.",
+     "start_line": 657,
+     "end_line": 662
+    },
+    {
+     "file": "sympy/tensor/tests/test_indexed.py",
+     "issue_header": "Test does not cover tuple-range case or verify TypeError still raised for floats",
+     "issue_content": "The new test only checks the scalar symbol range case. It does not test `Idx('i', (m, n))` with untyped symbols (which still fails due to the unfixed tuple path), nor does it assert that a clearly non-integer bound like `Idx('i', 1.5)` still raises TypeError. Without these cases the regression coverage is incomplete and the inconsistency in the tuple path goes undetected.",
+     "start_line": 425,
+     "end_line": 431
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0
+  },
+  {
+   "instance_id": "apache__airflow-16732@8ec4f26",
+   "repo": "apache/airflow",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "airflow/models/baseoperator.py",
+     "issue_header": "Sequence branch does not handle XComArg elements inside lists",
+     "issue_content": "When `up_task` and `down_task` are both `Sequence` (i.e. lists), the code calls `up_t.set_downstream(down_t)` for each pair. However, there is no guarantee that the elements inside those sequences are `BaseOperator` or `XComArg` instances \u2014 they could be arbitrary objects. More critically, the isinstance checks above only short-circuit when the *outer* item is a `BaseOperator` or `XComArg`; if someone passes a `Sequence[XComArg]`, the loop will reach the zip branch correctly, but if someone passes a mixed or invalid sequence the error message is misleading. Additionally, the elements inside the sequences are never validated to be `BaseOperator` or `XComArg`, so a bad element would produce an unhelpful `AttributeError` instead of a clear `TypeError`. Add a check that each element in the sequences is an instance of `(BaseOperator, XComArg)` and raise a descriptive `TypeError` if not.",
+     "start_line": 1583,
+     "end_line": 1590
+    },
+    {
+     "file": "airflow/models/baseoperator.py",
+     "issue_header": "Logic error: second isinstance branch is unreachable when up_task is a Sequence",
+     "issue_content": "The second branch `if isinstance(down_task, (BaseOperator, XComArg))` is only reached when `up_task` is NOT a `BaseOperator` or `XComArg`. At that point `up_task` must be a `Sequence`. Calling `down_task.set_upstream(up_task)` passes the whole sequence as the upstream argument, which is the intended behaviour for fan-in, but the comment/logic is misleading and the type annotation of `set_upstream` may not accept a raw `Sequence` directly. This was the same in the original code, but the XComArg addition makes it more likely to be hit. Verify that `XComArg.set_upstream` accepts a `Sequence` and document this explicitly, or restructure the conditions to be clearer.",
+     "start_line": 1573,
+     "end_line": 1578
+    },
+    {
+     "file": "airflow/models/baseoperator.py",
+     "issue_header": "cross_downstream to_tasks type annotation drops plain BaseOperator",
+     "issue_content": "The original signature accepted `to_tasks: Union[BaseOperator, Sequence[BaseOperator]]`, allowing a single operator to be passed. The new signature changes it to `Union[Sequence[BaseOperator], Sequence[\"XComArg\"]]`, silently dropping support for a single `BaseOperator` or `XComArg` as `to_tasks`. This is a backwards-incompatible change. Restore `Union[BaseOperator, \"XComArg\", Sequence[BaseOperator], Sequence[\"XComArg\"]]` or at minimum keep `Union[BaseOperator, Sequence[BaseOperator], Sequence[\"XComArg\"]]`.",
+     "start_line": 1607,
+     "end_line": 1608
+    },
+    {
+     "file": "tests/dags/test_chain_xcomargs.py",
+     "issue_header": "Unused import: PythonOperator",
+     "issue_content": "`PythonOperator` is imported but the `empty_func` task defined with it could simply use the `@task` decorator already imported from `airflow.decorators`. The import of `PythonOperator` is unused dead code and should be removed, or `empty_func` should be converted to a `@task`-decorated function for consistency with the rest of the file.",
+     "start_line": 28,
+     "end_line": 28
+    },
+    {
+     "file": "tests/dags/test_chain_xcomargs.py",
+     "issue_header": "Test DAG file is not a unit test \u2014 missing assertions and pytest coverage",
+     "issue_content": "This file is placed under `tests/dags/` and is only a runnable DAG, not a pytest test. It contains no assertions and will not be executed by the test suite automatically. The PR description says tests were added in `test_baseoperator.py`, but no such additions appear in the diff. Actual pytest test cases covering `chain()` with `XComArg` arguments (including edge cases like mismatched lengths and invalid types) should be added to `tests/models/test_baseoperator.py` to provide real regression coverage.",
+     "start_line": 1,
+     "end_line": 66
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0
+  },
+  {
+   "instance_id": "skypilot-org__skypilot-1427@b01cb79",
+   "repo": "skypilot-org/skypilot",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sky/authentication.py",
+     "issue_header": "cloud-init UserData overwrites any existing UserData in node config",
+     "issue_content": "The code unconditionally sets 'UserData' for every node type, silently discarding any UserData already present in the node config (e.g. from the template or user overrides). The existing value should be merged or the new content appended rather than replaced outright.",
+     "start_line": 88,
+     "end_line": 97
+    },
+    {
+     "file": "sky/authentication.py",
+     "issue_header": "get_or_generate_keys: condition checks None but private_key_path is always a string",
+     "issue_content": "After the refactor, `private_key_path` is always set to `os.path.expanduser(PRIVATE_SSH_KEY_PATH)` before the `if private_key_path is None` check, so the `None` branch can never be reached. The condition should be simplified to just `if not os.path.exists(private_key_path):`.",
+     "start_line": 75,
+     "end_line": 76
+    },
+    {
+     "file": "sky/authentication.py",
+     "issue_header": "get_or_generate_keys docstring says 'absolute paths' but returns unexpanded paths for Azure",
+     "issue_content": "The function returns `private_key_path` and `public_key_path` which are expanded (absolute) paths, but `setup_azure_authentication` then sets `config['auth']['ssh_public_key']` to the unexpanded constant `PUBLIC_SSH_KEY_PATH` ('~/.ssh/sky-key.pub') instead of the returned absolute path. This is inconsistent: the return value of `get_or_generate_keys()` is ignored in `setup_azure_authentication`, making the function call pointless and the intent unclear. Either use the returned paths or document that the return value is unused.",
+     "start_line": 67,
+     "end_line": 68
+    },
+    {
+     "file": "sky/authentication.py",
+     "issue_header": "cloud-init UserData not set for worker nodes when iterating node types",
+     "issue_content": "The loop `for node_type in config['available_node_types']:` iterates over keys (strings), so `config['available_node_types'][node_type]['node_config']['UserData']` is correct syntactically, but the indented block sets UserData only inside the loop body. This is fine for head+workers, but the public key is read once outside the loop with a file handle that is already closed by the time the loop runs \u2014 this is actually safe in Python since `with` closes after the block. However, if `available_node_types` is empty the key file is still opened unnecessarily. More critically, the `UserData` field is AWS-specific; applying it unconditionally to all node types without checking the cloud provider could break non-AWS configurations if this function were ever called in a shared path.",
+     "start_line": 83,
+     "end_line": 97
+    },
+    {
+     "file": "sky/authentication.py",
+     "issue_header": "Typo in docstring: 'abosulte' should be 'absolute'",
+     "issue_content": "The docstring for `get_or_generate_keys` contains a typo: 'Returns the abosulte public and private key paths.' should be 'Returns the absolute public and private key paths.'",
+     "start_line": 67,
+     "end_line": 70
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.17176245
+  },
+  {
+   "instance_id": "ansible__ansible-27435@da1a331",
+   "repo": "ansible/ansible",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "lib/ansible/modules/cloud/amazon/elb_classic_lb_facts.py",
+     "issue_header": "AWSRetry decorator on paginator-based function is ineffective and incorrect",
+     "issue_content": "The @AWSRetry.backoff decorator is applied to list_elbs(), but AWSRetry only retries on botocore ClientError exceptions with retryable error codes. More importantly, the paginator's build_full_result() call is inside the decorated function, so a transient error mid-pagination would restart from the beginning rather than from the failed page. The decorator should be removed from list_elbs() and instead applied to the individual boto3 calls (get_tags, get_lb_attributes, lb_instance_health) that are not using paginators.",
+     "line": 144
+    },
+    {
+     "file": "lib/ansible/modules/cloud/amazon/elb_classic_lb_facts.py",
+     "issue_header": "lb_instance_health passes raw instance dicts instead of instance ID dicts",
+     "issue_content": "The variable `instances` is set from `lb.get('Instances', [])` which is a list of dicts like `[{'InstanceId': 'i-xxx'}]`. These are passed directly to `describe_instance_health(Instances=instances)`. The boto3 API expects exactly this format, so this is actually correct \u2014 but the function is called three times (once per state), making three separate API calls to describe_instance_health for the same load balancer. This is wasteful; the health check results should be fetched once and filtered by state for each of the three calls.",
+     "line": 155
+    },
+    {
+     "file": "lib/ansible/modules/cloud/amazon/elb_classic_lb_facts.py",
+     "issue_header": "RETURN documentation description is a placeholder",
+     "issue_content": "The `description` field for `elb_classic_facts` is set to just `'a'`, which is clearly a placeholder and not a meaningful description. It should be replaced with a proper description such as 'A list of load balancer facts'.",
+     "line": 96
+    },
+    {
+     "file": "lib/ansible/modules/cloud/amazon/elb_classic_lb_facts.py",
+     "issue_header": "Connection error handling catches too narrow a set of exceptions",
+     "issue_content": "The except clause for boto3_conn only catches PartialCredentialsError and ProfileNotFound, but other credential/connection errors (e.g. NoCredentialsError, NoRegionError) are not caught and will produce an unhandled traceback instead of a clean fail_json message. Additionally, fail_json_aws is used but the first argument should be the exception object \u2014 verify that AnsibleAWSModule.fail_json_aws accepts a botocore exception as its first positional argument (it does), but NoCredentialsError should also be included.",
+     "line": 220
+    },
+    {
+     "file": "lib/ansible/modules/cloud/amazon/elb_classic_lb_facts.py",
+     "issue_header": "Module return key changed from 'elbs' to 'elb_classic_facts', breaking backward compatibility",
+     "issue_content": "The original module returned results under the key `elbs`. This PR changes it to `elb_classic_facts`, which is a breaking change for any existing playbooks or roles consuming this module's output. The old key should either be preserved (or aliased) and the change documented as a deprecation, or a changelog fragment must explicitly call out the breaking change.",
+     "line": 228
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    },
+    {
+     "comment_index": 2,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.18738045
+  },
+  {
+   "instance_id": "huggingface__diffusers-4015@c63a53a",
+   "repo": "huggingface/diffusers",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py",
+     "issue_header": "Loop break placed outside the `with self.progress_bar` block",
+     "issue_content": "The `break` statement is indented at the same level as the `with self.progress_bar(total=num_inference_steps) as progress_bar:` block, meaning it executes after every iteration of the loop rather than inside it. It should be indented one level deeper so it is inside the `for i, t in enumerate(timesteps):` loop body.",
+     "start_line": 787,
+     "end_line": 789
+    },
+    {
+     "file": "src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py",
+     "issue_header": "Loop break placed outside the `with self.progress_bar` block",
+     "issue_content": "Same indentation bug as in the text2img pipeline: the `break` is outside the for-loop body. It must be indented to sit inside `for i, t in enumerate(timesteps):` so it actually terminates the loop early when `max_inference_steps` is reached.",
+     "start_line": 884,
+     "end_line": 886
+    },
+    {
+     "file": "src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py",
+     "issue_header": "`first_inference_step` off-by-one makes `init_timestep` wrong",
+     "issue_content": "`init_timestep = first_inference_step - 1` means that when `first_inference_step=1` the pipeline starts from the very beginning (t_start=num_inference_steps-0=num_inference_steps), which is the opposite of the intended behaviour. The parameter semantics are unclear and the subtraction of 1 is likely incorrect; the value should be used directly or the semantics should be clearly documented and validated (e.g. 0-indexed vs 1-indexed).",
+     "start_line": 519,
+     "end_line": 521
+    },
+    {
+     "file": "src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py",
+     "issue_header": "`first_inference_step` validation rejects 0 but 0 is a valid starting step",
+     "issue_content": "The check `not isinstance(first_inference_step, int) or first_inference_step <= 0` raises an error when `first_inference_step=0`, but step 0 (start from the very beginning) is a perfectly valid value. The condition should be `first_inference_step < 0` to allow zero.",
+     "start_line": 462,
+     "end_line": 470
+    },
+    {
+     "file": "src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py",
+     "issue_header": "`max_inference_steps` is not validated anywhere",
+     "issue_content": "Unlike `first_inference_step` in the img2img pipeline, `max_inference_steps` has no input validation in either pipeline. There is no check that it is a positive integer or that it is less than `num_inference_steps`, so passing e.g. `max_inference_steps=0` or a negative value silently produces wrong results. A validation block (similar to the one added for `first_inference_step`) should be added in `check_inputs`.",
+     "start_line": 548,
+     "end_line": 550
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.7580589
+  },
+  {
+   "instance_id": "ansible__ansible-62373@30950ec",
+   "repo": "ansible/ansible",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "lib/ansible/plugins/action/win_updates.py",
+     "issue_header": "Incomplete become override: method, user, and flags not preserved when become is already set",
+     "issue_content": "The old code handled several cases: if become was already set but with the wrong method (not 'runas') or wrong user (not 'SYSTEM' or 'root'), it would correct them. The new code only sets a new become plugin when `orig_become is None`, completely skipping the case where become is already active but with a non-runas method or a non-SYSTEM user. This is a behavioral regression for cases like `(False, False, 'sudo', 'root', True, 'runas', 'SYSTEM')` that the old tests covered. The new tests no longer verify these cases, silently dropping the fix.",
+     "start_line": 107,
+     "end_line": 120
+    },
+    {
+     "file": "lib/ansible/plugins/become/__init__.py",
+     "issue_header": "KeyError swallowed for non-fallback options; ValueError comment is wrong exception type",
+     "issue_content": "The docstring/TODO comment says 'ValueError' but the code catches `KeyError`. More importantly, when `option` is not in `pc_fallback` the `KeyError` is re-raised, but the `playcontext` parameter may be `None` (no caller is required to pass it), so `getattr(playcontext, option, None)` will silently return `None` instead of raising when `playcontext` is `None`. Callers in connection plugins pass `playcontext=self._play_context`, but the signature allows omitting it, which would mask missing options rather than surfacing the error.",
+     "start_line": 43,
+     "end_line": 56
+    },
+    {
+     "file": "lib/ansible/plugins/connection/paramiko_ssh.py",
+     "issue_header": "become_pass sent even when it is None, causing authentication failure",
+     "issue_content": "The old code checked `self._play_context.become and self._play_context.become_pass` before sending the password, so it would raise 'A password is required but none was supplied' when no password was set. The new code checks only `if self.become:`, so if `become_pass` is `None` it will send `b'None\\n'` (or `b'\\n'` after `to_bytes(None)`) to the channel instead of raising the helpful error. The condition should also verify that `become_pass` is not None before calling `chan.sendall`.",
+     "start_line": 434,
+     "end_line": 438
+    },
+    {
+     "file": "lib/ansible/plugins/connection/psrp.py",
+     "issue_header": "become_method, become_user, become_pass removed from _build_kwargs without replacement",
+     "issue_content": "The diff removes the lines that set `self._become_method`, `self._become_user`, and `self._become_pass` from `_play_context` in `_build_kwargs`, but there is no replacement code that reads these values from the become plugin instead. If any other method in the psrp connection plugin references `self._become_method`, `self._become_user`, or `self._become_pass`, those references will now fail with an AttributeError or silently use stale/unset values.",
+     "start_line": 580,
+     "end_line": 583
+    },
+    {
+     "file": "test/units/plugins/action/test_win_updates.py",
+     "issue_header": "test_exec_with_become passes use_task=True but tests the non-use_task branch",
+     "issue_content": "In `test_exec_with_become`, `_execute_module_with_become` is called with `wrap_async=True, use_task=False` (the last two positional args). The comment says 'Asserts we don't override the become plugin', which is the `use_task=True` path. But `use_task=False` with `orig_become` set to a non-None value (`test_become = os.urandom(8)`) means the `if not use_task and orig_become is None` branch is skipped because `orig_become` is not None \u2014 so the assertion holds for the wrong reason. The test does not actually verify the `use_task=True` skip-override behavior.",
+     "start_line": 96,
+     "end_line": 110
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.6730305000000001
+  },
+  {
+   "instance_id": "keephq__keep-1984@e524fe8",
+   "repo": "keephq/keep",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "keep/api/models/db/topology.py",
+     "issue_header": "TopologyApplicationDto uses SQLModel Relationship inside a plain Pydantic BaseModel",
+     "issue_content": "TopologyApplicationDto inherits from BaseModel (not SQLModel) but declares `services` with `Relationship(...)`, which is a SQLModel construct and will not work correctly in a plain Pydantic model. This field should be a plain `List[...]` field with a default, e.g. `services: List[TopologyService] = []`, or the class should be restructured so that the ORM model and the DTO are clearly separated.",
+     "start_line": 121,
+     "end_line": 128
+    },
+    {
+     "file": "keep/topologies/topologies_service.py",
+     "issue_header": "Bare `raise` in delete_application_by_id swallows the 404 and raises RuntimeError",
+     "issue_content": "`raise` with no argument outside of an except block raises `RuntimeError: No active exception to re-raise`. The intent is clearly to signal a 404; it should be `raise HTTPException(status_code=404, detail=\"Application not found\")` to match the pattern used in `update_application_by_id`.",
+     "start_line": 170,
+     "end_line": 171
+    },
+    {
+     "file": "keep/topologies/topologies_service.py",
+     "issue_header": "session.query() mixed with session.exec() causes ORM session inconsistency",
+     "issue_content": "In `update_application_by_id`, the delete of stale `TopologyServiceApplication` rows uses the legacy `session.query(TopologyServiceApplication).where(...).delete()` API while the rest of the file uses the SQLModel/SQLAlchemy 2.x `session.exec(select(...))` API. This mixing can cause issues (e.g. the legacy `.where()` on a Query object is actually `.filter()`). Replace with `session.exec(delete(TopologyServiceApplication).where(...))` or delete the objects individually after fetching them with `session.exec`.",
+     "start_line": 148,
+     "end_line": 155
+    },
+    {
+     "file": "keep/api/routes/topology.py",
+     "issue_header": "logger.info uses dict key as format string instead of string key",
+     "issue_content": "In `create_application` (and similarly in `update_application` and `delete_application`), `extra={tenant_id: tenant_id}` uses the *value* of `tenant_id` as the dictionary key rather than the string `\"tenant_id\"`. This means the log extra field name is dynamic and unpredictable. It should be `extra={\"tenant_id\": tenant_id}` to match the pattern used in `get_applications`.",
+     "start_line": 72,
+     "end_line": 73
+    },
+    {
+     "file": "keep/topologies/topologies_service.py",
+     "issue_header": "GROUP BY on TopologyServiceApplication removes duplicate application links per service",
+     "issue_content": "The query fetching `TopologyServiceApplication` rows adds `.group_by(TopologyServiceApplication.service_id)`, which causes only one row per service to be returned even when a service belongs to multiple applications. The `group_by` clause should be removed so that all application associations for each service are returned.",
+     "start_line": 57,
+     "end_line": 63
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.29303385
+  },
+  {
+   "instance_id": "apache__airflow-32366@52228da",
+   "repo": "apache/airflow",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "Dockerfile",
+     "issue_header": "Fallback pip install only runs when first pip install fails",
+     "issue_content": "The logic `|| pip install 'pydantic>=2' || true` means `pip install 'pydantic>=2'` is only executed when the first `pip install` command fails. The intent appears to be to always upgrade pydantic to >=2 after installing airflow dependencies (regardless of whether the first install succeeded), but the `||` operator makes it conditional on failure. This should likely be a separate `pip install 'pydantic>=2'` command on its own line, or use `&&` if it should only run on success. The same issue exists in Dockerfile.ci and scripts/docker/install_airflow_dependencies_from_branch_tip.sh.",
+     "line": 388
+    },
+    {
+     "file": "setup.cfg",
+     "issue_header": "Removing upper bound on pydantic without ensuring compatibility",
+     "issue_content": "The upper bound `pydantic<2.0.0` was removed, but pydantic v2 introduced breaking API changes (e.g., `BaseModel` field definitions, validators, `schema()` \u2192 `model_json_schema()`, etc.). Simply removing the constraint without auditing all pydantic usage across the codebase (providers, serialization, etc.) may cause runtime errors for users who install pydantic>=2. The PR description says 'For CI only at the moment', but `setup.cfg` is the package's published metadata, so end users will also be affected. The constraint removal should be accompanied by a full compatibility audit or a compatibility shim.",
+     "start_line": 126,
+     "end_line": 128
+    },
+    {
+     "file": "airflow/serialization/pydantic/dag_run.py",
+     "issue_header": "Changing execution_date type from DateTime to datetime loses timezone precision",
+     "issue_content": "`pendulum.DateTime` is a timezone-aware subclass of `datetime` that guarantees timezone information. Replacing it with plain `datetime` means the field now accepts naive datetimes, which can cause silent bugs when execution dates are compared or serialized. If pydantic 2 doesn't support `pendulum.DateTime` directly, a custom validator/annotated type should be used to preserve the timezone-aware semantics rather than widening the type to plain `datetime`.",
+     "line": 32
+    },
+    {
+     "file": "Dockerfile.ci",
+     "issue_header": "Same fallback logic issue as Dockerfile",
+     "issue_content": "Same as the Dockerfile issue: `|| pip install 'pydantic>=2'` only runs when the preceding pip install fails, not unconditionally. If the goal is to ensure pydantic>=2 is installed after airflow dependencies are resolved (e.g., to upgrade from whatever version the constraint pinned), this should be a separate unconditional command.",
+     "line": 348
+    },
+    {
+     "file": "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
+     "issue_header": "Same fallback logic issue as Dockerfile",
+     "issue_content": "Same as the Dockerfile issue: `|| pip install 'pydantic>=2'` only runs when the preceding pip install fails. If the intent is to always ensure pydantic>=2 is present (e.g., to override a constraint-pinned older version), this must be a separate unconditional `pip install 'pydantic>=2'` invocation.",
+     "line": 54
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.21057615
+  },
+  {
+   "instance_id": "numpy__numpy-22997@8c57716",
+   "repo": "numpy/numpy",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "numpy/__init__.pxd",
+     "issue_header": "PyArray_PyIntAsIntp missing except clause",
+     "issue_content": "PyArray_PyIntAsIntp returns npy_intp and can signal an error (returns -1 and sets an exception), but unlike PyArray_PyIntAsInt which was updated to `except? -1`, PyArray_PyIntAsIntp has no exception annotation. It should be declared `except? -1` (or `except -1`) so Cython propagates errors from this call.",
+     "line": 563
+    },
+    {
+     "file": "numpy/__init__.pxd",
+     "issue_header": "PyArray_ElementStrides missing except clause",
+     "issue_content": "PyArray_ElementStrides returns an int and can return 0 on error (it returns 0 when strides are not a multiple of the element size or on failure). It should be annotated with `except 0` so Cython checks for and propagates errors. The same issue exists in numpy/__init__.cython-30.pxd.",
+     "line": 597
+    },
+    {
+     "file": "numpy/__init__.pxd",
+     "issue_header": "PyArray_INCREF / PyArray_XDECREF missing except clauses",
+     "issue_content": "PyArray_INCREF and PyArray_XDECREF return int and can return -1 on error (e.g. when the array contains objects and a tp_traverse-like error occurs). They were not updated with `except -1` in this PR, leaving silent error swallowing. The same omission exists in numpy/__init__.cython-30.pxd.",
+     "line": 519
+    },
+    {
+     "file": "numpy/__init__.cython-30.pxd",
+     "issue_header": "Spurious whitespace change to PyArray_IsNativeByteOrder comment alignment",
+     "issue_content": "The diff removes one space before the comment on the PyArray_IsNativeByteOrder line (changing `nogil  #` to `nogil #`), making it inconsistent with the surrounding lines (e.g. PyArray_ISNBO uses two spaces before `#`). This is a cosmetic regression with no functional benefit and should be reverted.",
+     "line": 452
+    },
+    {
+     "file": "numpy/__init__.pxd",
+     "issue_header": "PyArray_TypeNumFromName missing except clause",
+     "issue_content": "PyArray_TypeNumFromName returns int and returns NPY_NOTYPE (a negative sentinel, -1) when the name is not found, but no exception is set in that case. The current declaration has no `except` annotation, so Cython will not check for errors. Since -1 is a valid error sentinel here but no Python exception is raised, it should at minimum be documented (e.g. `# returns NPY_NOTYPE on failure, no exception set`) or handled with `except? -1` if an exception is actually set. The same issue exists in numpy/__init__.cython-30.pxd.",
+     "line": 683
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.24289305
+  }
+ ],
+ "comments": [
+  {
+   "instance_id": "sympy__sympy-11818@ab1bcd5",
+   "repo": "sympy/sympy",
+   "comment_index": 0,
+   "passed": false,
+   "error": true
+  },
+  {
+   "instance_id": "pandas-dev__pandas-43930@fef88a7",
+   "repo": "pandas-dev/pandas",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "skypilot-org__skypilot-1489@1430d74",
+   "repo": "skypilot-org/skypilot",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "skypilot-org__skypilot-1489@1430d74",
+   "repo": "skypilot-org/skypilot",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "skypilot-org__skypilot-1489@1430d74",
+   "repo": "skypilot-org/skypilot",
+   "comment_index": 2,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "sympy__sympy-18605@a356458",
+   "repo": "sympy/sympy",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "apache__airflow-16732@8ec4f26",
+   "repo": "apache/airflow",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "skypilot-org__skypilot-1427@b01cb79",
+   "repo": "skypilot-org/skypilot",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "ansible__ansible-27435@da1a331",
+   "repo": "ansible/ansible",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "ansible__ansible-27435@da1a331",
+   "repo": "ansible/ansible",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "ansible__ansible-27435@da1a331",
+   "repo": "ansible/ansible",
+   "comment_index": 2,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "huggingface__diffusers-4015@c63a53a",
+   "repo": "huggingface/diffusers",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "ansible__ansible-62373@30950ec",
+   "repo": "ansible/ansible",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "keephq__keep-1984@e524fe8",
+   "repo": "keephq/keep",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "apache__airflow-32366@52228da",
+   "repo": "apache/airflow",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "numpy__numpy-22997@8c57716",
+   "repo": "numpy/numpy",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  }
+ ],
+ "cost_usd": 2.5367
+}

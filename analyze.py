@@ -58,7 +58,8 @@ def paired_permutation(a, b, n=10000, seed=0):
     return float((1 + (perm >= abs(d.sum()) - 1e-9).sum()) / (n + 1))
 
 
-def main():
+def released_passed():
+    """-> (keys [(instance, comment_text)], passed {tool|'union': set of keys}). See module docstring."""
     extract()
     stage4 = {r["instance_id"] for r in data.load(data.STAGES[-1])}
     keep = {}  # instance -> set of resolved comment_texts
@@ -77,8 +78,12 @@ def main():
                 if k[1] in keep.get(k[0], ()) and r.get("test_passed") is True:
                     passed[tool].add(k)
     passed["union"] = set().union(*passed.values())
+    return keys, passed
 
-    splits = json.load(open(ROOT / "results/splits.json"))["instance_ids"]
+
+def main():
+    keys, passed = released_passed()
+    splits =json.load(open(ROOT / "results/splits.json"))["instance_ids"]
     out = {"n_comments": len(keys)}
     for name, ids in [("all", None)] + list(splits.items()):
         ids = set(ids) if ids else None

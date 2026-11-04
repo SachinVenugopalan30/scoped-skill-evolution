@@ -1,0 +1,105 @@
+{
+  "static_dev": {
+    "n_prs": 12,
+    "n_comments": 16,
+    "passed": 4,
+    "rate": 0.25,
+    "ci95": [
+      0.047619047619047616,
+      0.42857142857142855
+    ],
+    "n_errors": 1,
+    "pass_rate_excl_errors": 0.26666666666666666,
+    "excluded": {
+      "no_image": 0,
+      "oversize": 3
+    }
+  },
+  "released_same_comments": {
+    "n_comments": 16,
+    "passed": {
+      "claude-code": 4,
+      "codex": 2,
+      "devin": 4,
+      "pr-agent": 4,
+      "union": 4
+    },
+    "prs_all_pass": {
+      "claude-code": 3,
+      "codex": 1,
+      "devin": 3,
+      "pr-agent": 3,
+      "union": 3
+    },
+    "ours_prs_all_pass": 3,
+    "n_prs": 12
+  },
+  "evolution": {
+    "global": {
+      "accepted": false,
+      "gained": 0,
+      "regressed": 1,
+      "sel_base": {
+        "n_prs": 8,
+        "n_errors": 0,
+        "errored_prs": [],
+        "n_comments": 9,
+        "passed": 5,
+        "pass_rate_errors_as_failed": 0.5555555555555556,
+        "pass_rate_excl_errors": 0.5555555555555556
+      },
+      "sel_new": {
+        "n_prs": 8,
+        "n_errors": 0,
+        "errored_prs": [],
+        "n_comments": 9,
+        "passed": 4,
+        "pass_rate_errors_as_failed": 0.4444444444444444,
+        "pass_rate_excl_errors": 0.4444444444444444
+      },
+      "edit_scopes": [
+        "global",
+        "global"
+      ],
+      "cost_usd": 2.9043
+    },
+    "scoped": {
+      "accepted": false,
+      "gained": 0,
+      "regressed": 1,
+      "sel_base": {
+        "n_prs": 8,
+        "n_errors": 0,
+        "errored_prs": [],
+        "n_comments": 9,
+        "passed": 5,
+        "pass_rate_errors_as_failed": 0.5555555555555556,
+        "pass_rate_excl_errors": 0.5555555555555556
+      },
+      "sel_new": {
+        "n_prs": 8,
+        "n_errors": 0,
+        "errored_prs": [],
+        "n_comments": 9,
+        "passed": 4,
+        "pass_rate_errors_as_failed": 0.4444444444444444,
+        "pass_rate_excl_errors": 0.4444444444444444
+      },
+      "edit_scopes": [
+        "global",
+        "bug_fix"
+      ],
+      "cost_usd": 1.7969
+    }
+  },
+  "cost": {
+    "total_usd": 10.691,
+    "cap_code": 22.0,
+    "n_repairs": 37,
+    "n_reviews": 37,
+    "n_optimizer": 2,
+    "mean_per_pr_eval_usd": 0.287,
+    "mean_repair_usd": 0.26,
+    "mean_review_usd": 0.027
+  }
+}
