@@ -115,7 +115,7 @@ def propose_edits(library, feedback, condition, forbidden=(), model=reviewer.MOD
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     assert_clean(msgs, forbidden)  # exact payload, right before the call
     harness.check_budget(OPT_RESERVE_USD)
-    resp = litellm.completion(model=model, messages=msgs, temperature=0, max_tokens=1000, num_retries=2)
+    resp = litellm.completion(model=model, messages=msgs, temperature=0, max_tokens=1000, num_retries=2, **reviewer.llm_kwargs())
     harness.record("optimizer", "round", reviewer.cost_of(resp))
     return parse_edits(resp.choices[0].message.content or "", library, condition)
 
@@ -291,6 +291,7 @@ def main():
         p.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
     harness.setup()
+    harness.start_proxy()
     inst = harness.instances()
     try:
         if a.cmd == "static":

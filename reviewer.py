@@ -1,12 +1,21 @@
 """LLM reviewer: PR title/body/diff + skill texts -> <=5 validated findings. No gold data ever enters the prompt."""
-import json, math
+import json, math, os
 import litellm
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "openai/qwen36-27b"                    # served by ASU Voyager (OpenAI-compatible)
+API_BASE = "https://openai.rc.asu.edu/v1"
 MAX_FINDINGS = 5
 MAX_TOKENS, RETRY_MAX_TOKENS, TEMPERATURE = 3000, 6000, 0
 MAX_DIFF_CHARS = 120_000  # ponytail: hard char cap on the diff (~30k tokens); chunk or summarize per file if big PRs matter
-PRICE_IN, PRICE_OUT = 3.0, 15.0  # $/MTok fallback when litellm has no price for the model
+# $/MTok. litellm has no price for this model, so these drive every cost figure (reviewer, optimizer, repair).
+# ponytail: 0.027/1.49 are the prices quoted for the hosted model; confirm they apply, or set both to 0 if the hosting is free.
+PRICE_IN, PRICE_OUT = 0.027, 1.49
+
+
+def llm_kwargs():
+    """Endpoint, key and no-thinking flag for every litellm call. The key is read at call time so tests and setup() control it."""
+    return {"api_base": API_BASE, "api_key": os.environ.get("VOYAGER_API_KEY", ""),
+            "extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}  # reasoning model: thinking eats max_tokens and leaves content null
 
 
 def cost_of(resp):
@@ -83,7 +92,7 @@ def review(instance, skills, model=MODEL, on_cost=None):
             msgs = msgs[:-1] + [{**msgs[-1], "content": msgs[-1]["content"] + "\n\nYour previous reply was not valid JSON. "
                                  "Reply with valid JSON only (a short list), keep it shorter."}]
         resp = litellm.completion(model=model, messages=msgs, temperature=TEMPERATURE, num_retries=2,
-                                  max_tokens=RETRY_MAX_TOKENS if attempt else MAX_TOKENS)
+                                  max_tokens=RETRY_MAX_TOKENS if attempt else MAX_TOKENS, **llm_kwargs())
         c = cost_of(resp)
         cost += c
         if on_cost:

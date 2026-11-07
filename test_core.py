@@ -139,6 +139,17 @@ def test_retrieval():
     assert ids("global", "bug_fix", budget, [big, small]) == ["g2"]
 
 
+def token_prices(f):
+    """Cost = output_tokens / 10 dollars, so fake Claude JSON can carry exact costs (4 tokens = $0.40)."""
+    import functools
+    @functools.wraps(f)
+    def g(*a, **k):
+        with mock.patch.object(reviewer, "PRICE_IN", 0.0), mock.patch.object(reviewer, "PRICE_OUT", 1e5):
+            return f(*a, **k)
+    return g
+
+
+@token_prices
 def test_ledger():
     with tmp_state():
         with mock.patch.object(harness, "CAP_USD", 1.0):
@@ -150,13 +161,13 @@ def test_ledger():
                 pass
         assert abs(harness.spent() - 0.6) < 1e-9  # recomputed from disk
         harness.record("repair", "x", None)
-        assert harness.spent() - 0.6 == harness.MAX_REPAIR_USD  # unknown cost is the max, not 0
+        assert abs(harness.spent() - 0.6 - harness.MAX_REPAIR_USD) < 1e-9  # unknown cost is the max, not 0
         harness.record("repair", "x", float("nan"))
-        assert harness.spent() - 0.6 == 2 * harness.MAX_REPAIR_USD
+        assert abs(harness.spent() - 0.6 - 2 * harness.MAX_REPAIR_USD) < 1e-9
         # unparseable / timed-out claude output is charged at the max
         g = harness.parse_claude("garbage")
         assert g["cost"] == harness.MAX_REPAIR_USD and not g["ok"]
-        p = harness.parse_claude('{"type":"result","result":"hi","total_cost_usd":0.2,"is_error":true,"subtype":"x"}')
+        p = harness.parse_claude('{"type":"result","result":"hi","usage":{"input_tokens":9,"cache_read_input_tokens":9,"output_tokens":2},"is_error":true,"subtype":"x"}')
         assert (p["text"], p["cost"], p["ok"], p["is_error"], p["subtype"]) == ("hi", 0.2, True, True, "x")
         assert not harness.parse_claude('{"result":"no cost"}')["ok"]
         # corrupt trailing ledger line is counted conservatively, not a crash
@@ -165,7 +176,7 @@ def test_ledger():
             f.write('{"kind": "repair", "inst')
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            assert harness.spent() == before + harness.MAX_REPAIR_USD and w
+            assert abs(harness.spent() - before - harness.MAX_REPAIR_USD) < 1e-9 and w
     with tmp_state():
         ts = [threading.Thread(target=lambda: [harness.record("k", "i", 0.01) for _ in range(50)]) for _ in range(8)]
         [t.start() for t in ts]; [t.join() for t in ts]
@@ -208,7 +219,7 @@ def test_reviewer():
         calls.append(kw); return fake_resp("sorry no json")
     with mock.patch.object(litellm, "completion", fake), mock.patch.object(litellm, "completion_cost", side_effect=Exception("no price")):
         r = reviewer.review(INST, [])
-    assert len(calls) == 2 and r["findings"] == [] and r["error"] and abs(r["cost_usd"] - 2 * (1000 * 3 + 100 * 15) / 1e6) < 1e-12
+    assert len(calls) == 2 and r["findings"] == [] and r["error"] and abs(r["cost_usd"] - 2 * (1000 * reviewer.PRICE_IN + 100 * reviewer.PRICE_OUT) / 1e6) < 1e-12
     assert calls[0]["temperature"] == 0
     # C2b: the retry is a different request (more tokens, stricter instruction)
     assert calls[1]["max_tokens"] > calls[0]["max_tokens"] and calls[1]["messages"] != calls[0]["messages"]
@@ -284,7 +295,7 @@ def test_cache():
         with mock.patch.object(harness, "run_repair", good):
             harness.repair_pr(INST, f); harness.repair_pr(INST, f)
             assert len(calls) == 1
-            with mock.patch.object(harness, "HARNESS_VERSION", "2"):
+            with mock.patch.object(harness, "HARNESS_VERSION", "other"):
                 harness.repair_pr(INST, f)
             assert len(calls) == 2
             with mock.patch.object(harness, "MAX_REPAIR_USD", 1.0):
@@ -403,8 +414,9 @@ def repair_with(claude_json, rc=0, diff="", passed=True, stderr=""):
             pass
 
 
+@token_prices
 def test_repair_failures():
-    cj = lambda **kw: json.dumps({"type": "result", "total_cost_usd": 0.4, **kw})
+    cj = lambda **kw: json.dumps({"type": "result", "usage": {"input_tokens": 50, "output_tokens": 4}, **kw})
     with tmp_state():
         # C1: failed claude run with no diff is an infra error (passed None), not a failed test; cost kept
         r, sess = repair_with(cj(is_error=True, subtype="error_during_execution", result="boom"), rc=1)
@@ -460,7 +472,7 @@ def test_repair_failures():
         except RuntimeError:
             assert not started
         # parsed $0 records $0; unparseable fatal output records the max
-        for out, want in ((cj(is_error=True, result="Invalid API key", total_cost_usd=0.0), 0.0), ("Invalid API key", harness.MAX_REPAIR_USD)):
+        for out, want in ((cj(is_error=True, result="Invalid API key", usage={"input_tokens": 5, "output_tokens": 0}), 0.0), ("Invalid API key", harness.MAX_REPAIR_USD)):
             sp0, sess = harness.spent(), FakeSession()
             o = SimpleNamespace(stdout=out, stderr="", returncode=1, timed_out=False)
             with mock.patch.object(harness, "DockerContainerSession", lambda *a, **k: sess), mock.patch.object(harness, "ensure_image", lambda i: i), \
@@ -532,11 +544,11 @@ def test_guards_and_summary():
     # I2: setup aborts on an empty key
     with tempfile.TemporaryDirectory() as d, mock.patch.object(harness, "ENV_FILE", Path(d) / "none.env"), \
             mock.patch.dict("os.environ", {}, clear=False), mock.patch.object(harness, "LEDGER", Path(d) / "l.jsonl"):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
+        os.environ.pop("VOYAGER_API_KEY", None)
         try:
             harness.setup(); raise SystemExit("setup accepted empty key")
         except SystemExit as e:
-            assert "ANTHROPIC_API_KEY" in str(e)
+            assert "VOYAGER_API_KEY" in str(e)
         assert not harness.LEDGER.exists()
         harness.get_key.cache_clear()
     # I7: both rates, errors listed; errored PR comments count as failed in the main number
@@ -592,12 +604,12 @@ def test_image_cleanup():
         for argv in (["evolve.py", "static", "--partition", "development", "--n", "2"],
                      ["evolve.py", "evolve", "--condition", "scoped", "--dev-n", "2", "--sel-n", "2", "--rounds", "1"]):
             n = []
-            with mock.patch.object(sys, "argv", argv), mock.patch.object(harness, "setup", lambda: None), \
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(harness, "setup", lambda: None), mock.patch.object(harness, "start_proxy", lambda: None), \
                     mock.patch.object(evolve, "sample", side_effect=exc), mock.patch.object(harness, "cleanup_images", lambda: n.append(1)):
                 evolve.main()
             assert n == [1], (argv[1], exc)
     n = []
-    with tmp_state(), mock.patch.object(harness, "setup", lambda: None), mock.patch.object(harness, "run_review", side_effect=harness.BudgetExceeded("cap")), \
+    with tmp_state(), mock.patch.object(harness, "setup", lambda: None), mock.patch.object(harness, "start_proxy", lambda: None), mock.patch.object(harness, "run_review", side_effect=harness.BudgetExceeded("cap")), \
             mock.patch.object(harness, "cleanup_images", lambda: n.append(1)):
         try:
             harness.pilot(splits["instance_ids"]["development"][0]); raise SystemExit("pilot swallowed stop")
@@ -611,8 +623,20 @@ def test_image_cleanup():
     assert n == [1, 1, 1], n  # test_round runs 3 rounds
 
 
+def test_proxy_hook():
+    """Claude Code sends top-level system blocks plus a system-role message after the user turn; Qwen needs exactly one system string."""
+    import proxy_hooks
+    d = proxy_hooks.merge_system_prompts({"system": [{"type": "text", "text": "A"}, {"type": "text", "text": "B"}],
+                                          "messages": [{"role": "user", "content": "hi"}, {"role": "system", "content": [{"type": "text", "text": "C"}]}]})
+    assert d["system"] == "A\n\nB\n\nC" and [m["role"] for m in d["messages"]] == ["user"]
+    d = proxy_hooks.merge_system_prompts({"system": "only", "messages": [{"role": "user", "content": "x"}]})
+    assert d["system"] == "only" and len(d["messages"]) == 1
+    d = proxy_hooks.merge_system_prompts({"messages": [{"role": "user", "content": "x"}]})
+    assert "system" not in d and len(d["messages"]) == 1
+
+
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
     test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_reviewer(); test_cache()
-    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops(); test_guards_and_summary(); test_image_cleanup()
+    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops(); test_guards_and_summary(); test_image_cleanup(); test_proxy_hook()
     print("all tests passed")

@@ -4,13 +4,16 @@ CSE 572 (Data Mining), Group 22. Does organizing evolved review skills into **gl
 
 How it works: an LLM reviewer reads a PR diff plus retrieved skills and returns up to 5 findings. Claude Code applies the findings inside the PR's Docker image, and c-CRAB's executable tests say pass or fail. An optimizer sees sanitized pass/fail feedback and proposes up to 2 skill edits per round. An edit is accepted only if it gains at least 1 selection PR and regresses at most 1.
 
-**Status:** progress-report stage. The pipeline runs end to end; the experiments so far are small. See `results/progress_report_draft.md`.
+**Model:** everything (reviewer, optimizer, repair agent) uses `qwen36-27b`, hosted by ASU at `https://openai.rc.asu.edu/v1`. Claude Code only speaks the Anthropic API, so the harness starts a local LiteLLM proxy that translates to the ASU endpoint (see "How the model is wired").
+
+**Status:** progress-report stage. The pipeline runs end to end; the experiments so far are small. The numbers in `results/` and the report draft come from earlier runs with Claude Sonnet 4.6 and have **not** been re-run on `qwen36-27b`; re-run the static baseline before comparing. See `results/progress_report_draft.md`.
 
 ## Requirements
 - Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/)
 - Docker. The c-CRAB images are amd64-only, so on Apple Silicon they run under emulation (slow and CPU-heavy; see Tips)
 - git
-- An Anthropic API key (the reviewer, optimizer and repair agent all use `claude-sonnet-4-6`)
+- An ASU Voyager API key. If the endpoint is unreachable, try toggling the ASU VPN; it worked here with the VPN off
+- Docker Desktop (the containers reach the proxy at `host.docker.internal`)
 - Free disk: images are 2 to 4 GB each. They are downloaded per PR and deleted after use
 
 ## Setup
@@ -23,9 +26,8 @@ If you cloned without `--recurse-submodules`: `git submodule update --init`.
 
 Create a `.env` file **in this folder** (it is gitignored; never commit it):
 ```
-ANTHROPIC_API_KEY=your-key-here
+VOYAGER_API_KEY=your-key-here
 ```
-Tip: set a monthly spend limit on the key in the Anthropic Console.
 
 ## Run it, start to finish
 Commands below use `uv run`. Steps 1 to 3 cost nothing.
@@ -67,13 +69,21 @@ Commands below use `uv run`. Steps 1 to 3 cost nothing.
 
 Use the same `--n` and seeds across runs so cached results are reused.
 
+## How the model is wired
+- `reviewer.py` and the optimizer call `openai/qwen36-27b` through LiteLLM with thinking disabled (`chat_template_kwargs`), since this is a reasoning model that otherwise spends its token budget on thinking and returns empty content.
+- The repair agent is Claude Code inside the container. `harness.start_proxy()` (called by the CLIs) starts a LiteLLM proxy on `127.0.0.1:4000` that exposes the Anthropic API and forwards to ASU, and stops it at exit. Config is generated at `runs/proxy.yaml`.
+- The proxy must use the `hosted_vllm/` provider: with `openai/` the streamed tool-call arguments are dropped and the agent loops on empty tool calls.
+- `proxy_hooks.py` merges Claude Code's multiple system messages into one, because Qwen's chat template accepts only a single system message.
+- The ASU key stays on the host. Containers get only a random per-run token that the local proxy accepts.
+
 ## Cost and safety
-- Every paid call checks a spend ledger (`runs/ledger.jsonl`) first. The hard cap is `CAP_USD = 22.0` in `harness.py`, and a run stops cleanly when it would exceed it.
+- Prices are set in `reviewer.py` (`PRICE_IN`, `PRICE_OUT`, $ per 1M tokens, currently 0.027 / 1.49). Confirm they match your hosting terms, or set both to 0 if it is free. Repair cost is computed from token usage at these prices, not from Claude Code's own cost field.
+- Every paid call checks a spend ledger (`runs/ledger.jsonl`) first. The hard cap is `CAP_USD = 22.0` in `harness.py`, and a run stops cleanly when it would exceed it. The ledger is shared across models, so old spend counts toward the cap; move the file aside to reset it.
 - Results are cached under `runs/cache/` by content, so re-running the same step is free. A run interrupted by Ctrl-C or the cap can be started again.
-- Measured cost is about $0.29 per PR evaluation. The full proposal is roughly $550 to $700 (see the report, section 6.4).
+- Measured on `qwen36-27b`: a pilot PR cost about $0.002 (13k input, 0.3k output tokens for the repair). The Sonnet 4.6 figure used in the report ($0.29 per PR evaluation) no longer applies.
 - The locked **test partition is blocked in code**: `sample()` and `pilot` refuse it. Remove that guard only for the final frozen run, and run it once.
 - Benchmark Docker images are deleted by exact tag after each round and run. Nothing else on your machine is touched.
-- The API key is written into containers via a short-lived 600-mode file and scrubbed from everything under `runs/` and `results/`.
+- The key is scrubbed from everything written under `runs/` and `results/`.
 
 ## Tips
 - **Docker CPU load:** the amd64 images run under emulation. In Docker Desktop, limit CPUs (Settings → Resources) and try "Use Rosetta for x86_64/amd64 emulation" (Settings → General).
@@ -88,6 +98,7 @@ Use the same `--n` and seeds across runs so cached results are reused.
 | `evolve.py` | Skill library, retrieval, sanitizer, optimizer, gate, `static` and `evolve` CLIs |
 | `analyze.py` | Released-tool scoring, bootstrap CI, permutation test |
 | `report_numbers.py` | Summary numbers and figure for the report |
+| `proxy_hooks.py` | LiteLLM proxy hook: merges system messages for Qwen |
 | `test_core.py` | Offline tests |
 | `results/` | Committed outputs and the report draft |
 | `runs/` | Local only: ledger, cache, raw logs (gitignored) |

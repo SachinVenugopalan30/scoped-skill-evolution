@@ -1,7 +1,8 @@
 """Spend ledger, content-addressed cache, Docker repair run scored on Stage 4 tests, pilot CLI."""
-import argparse, hashlib, json, math, os, re, subprocess, sys, tempfile, threading, time, uuid, warnings, zipfile
+import argparse, atexit, hashlib, json, math, os, re, secrets, subprocess, sys, tempfile, threading, time, urllib.request, uuid, warnings, zipfile
 from functools import lru_cache
 from pathlib import Path
+from types import SimpleNamespace
 
 from dotenv import dotenv_values, load_dotenv
 
@@ -19,21 +20,24 @@ TESTGEN_ZIP = VENDOR / "raw_results_compressed/testgen_combined.zip"
 LEDGER = ROOT / "runs/ledger.jsonl"
 CACHE = ROOT / "runs/cache"
 RAW = ROOT / "runs/raw"   # scrubbed raw claude output per repair run
-HARNESS_VERSION = "1"     # bump when repair flow/scoring changes: invalidates repair cache
+HARNESS_VERSION = "4"     # bump when repair flow/scoring changes: invalidates repair cache
 CAP_USD = 22.0
-MAX_REPAIR_USD = 1.5       # passed to claude --max-budget-usd; also the charge when real cost is unknown
+MAX_REPAIR_USD = 0.25      # charge when a repair's real cost is unknown (timeout, unparseable); well above the ~$0.02 typical run at the quoted prices
 REVIEW_RESERVE_USD = 0.3
-REPAIR_MODEL = "claude-sonnet-4-6"
+REPAIR_MODEL = "qwen36-27b"  # alias served by the local proxy (below)
 WORKERS = 2                # Docker has 8 GB
+REPAIR_TIMEOUT = CLAUDE_TIMEOUT  # seconds per repair run (vendor: 600)
 NO_IMAGE = {"python__cpython-104029@f78e70e"}
 EXT = {"python": ".py", "javascript": ".test.js", "typescript": ".test.ts", "go": "_test.go"}
 CLAUDE_BIN, PROMPT_PATH, KEY_PATH = "/home/agent/.local/bin/claude", "/home/agent/prompt.txt", "/home/agent/.anthropic_env"
+PROXY_PORT, PROXY_TOKEN, _proxy = 4000, "unset", None  # token is random per run; only the local proxy accepts it
+PROXY_URL_IN_CONTAINER = f"http://host.docker.internal:{PROXY_PORT}"  # Docker Desktop; on Linux add --add-host
 
 
 # ---------- secrets ----------
 @lru_cache
 def get_key():
-    return os.environ.get("ANTHROPIC_API_KEY") or dotenv_values(ENV_FILE).get("ANTHROPIC_API_KEY") or ""
+    return os.environ.get("VOYAGER_API_KEY") or dotenv_values(ENV_FILE).get("VOYAGER_API_KEY") or ""
 
 
 def setup():
@@ -41,7 +45,45 @@ def setup():
     load_dotenv(ENV_FILE)
     get_key.cache_clear()
     if not get_key():
-        raise SystemExit("ANTHROPIC_API_KEY is empty or missing: set it in .env (project root) or the environment")
+        raise SystemExit("VOYAGER_API_KEY is empty or missing: set it in .env (project root) or the environment")
+
+
+def _stop_proxy():
+    if _proxy and _proxy.poll() is None:
+        _proxy.terminate()
+        try:
+            _proxy.wait(15)
+        except subprocess.TimeoutExpired:
+            _proxy.kill()
+
+
+def start_proxy():
+    """Local LiteLLM proxy on loopback: Claude Code speaks the Anthropic API, ASU Voyager speaks OpenAI's. The ASU key stays on the
+    host; containers only get PROXY_TOKEN, which this proxy alone accepts. Stopped at exit. Call after setup()."""
+    global _proxy, PROXY_TOKEN
+    if _proxy:
+        return
+    cfg = ROOT / "runs/proxy.yaml"
+    write_text(cfg, "model_list:\n  - model_name: " + REPAIR_MODEL + "\n    litellm_params:\n      model: hosted_vllm/qwen36-27b"  # not openai/: its Anthropic streaming drops tool-call arguments (empty tool inputs)
+               + ""
+               + "\n      api_base: " + reviewer.API_BASE + "\n      api_key: os.environ/VOYAGER_API_KEY\n      extra_body:\n"
+               "        chat_template_kwargs: {enable_thinking: false}\n"
+               "litellm_settings:\n  callbacks: proxy_hooks.merge_system\n")  # proxy_hooks.py: one system message only
+    PROXY_TOKEN = "sk-" + secrets.token_hex(12)
+    env = {**os.environ, "VOYAGER_API_KEY": get_key(), "LITELLM_MASTER_KEY": PROXY_TOKEN, "PYTHONPATH": str(ROOT)}
+    exe = Path(sys.executable).parent / "litellm"
+    _proxy = subprocess.Popen([str(exe), "--config", str(cfg), "--host", "127.0.0.1", "--port", str(PROXY_PORT)], env=env,
+                              stdout=open(ROOT / "runs/proxy.log", "w"), stderr=subprocess.STDOUT)
+    atexit.register(_stop_proxy)
+    for _ in range(90):
+        if _proxy.poll() is not None:
+            raise SystemExit(f"proxy exited early (port {PROXY_PORT} busy?); see runs/proxy.log")
+        try:
+            if urllib.request.urlopen(f"http://127.0.0.1:{PROXY_PORT}/health/liveliness", timeout=2).status == 200:
+                return
+        except Exception:
+            time.sleep(1)
+    raise SystemExit("proxy did not start in 90s; see runs/proxy.log")
 
 
 def scrub(text, key=None):
@@ -208,20 +250,24 @@ def ensure_image(iid):
 
 # CLI error forms only; prose that merely mentions "authentication" or "billing" must not stop a run
 FATAL_RE = re.compile(r"invalid x-api-key|invalid api key|authentication_error|api error: ?40[13]|credit balance is too low|"
+                      r"invalid proxy server token|incorrect api key|invalid_api_key|"
                       r"rate_limit_error|usage limit reached|please run /login", re.I)
 
 
 def parse_claude(stdout):
     """Tolerant parse of `claude -p --output-format json`. Returns text, cost, ok, is_error, subtype.
-    ok False (no usable cost) -> cost = MAX_REPAIR_USD, the unknown-cost charge."""
+    Cost is recomputed from the token usage at reviewer.PRICE_*: Claude Code's own total_cost_usd uses Anthropic prices and does not
+    know this model. ok False (no usage) -> cost = MAX_REPAIR_USD, the unknown-cost charge."""
     out = {"text": "", "cost": MAX_REPAIR_USD, "ok": False, "is_error": False, "subtype": ""}
     try:
         o = json.loads(stdout)
         if isinstance(o, list):
             o = [x for x in o if isinstance(x, dict) and x.get("type") == "result"][-1]
         out.update(text=str(o.get("result", "")), is_error=bool(o.get("is_error")), subtype=str(o.get("subtype") or ""))
-        cost = o["total_cost_usd"]
-        assert isinstance(cost, (int, float)) and math.isfinite(cost) and cost >= 0
+        u = o["usage"]
+        tin = sum(int(u.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+        cost = (tin * reviewer.PRICE_IN + int(u.get("output_tokens") or 0) * reviewer.PRICE_OUT) / 1e6
+        assert math.isfinite(cost) and cost >= 0
         out.update(cost=float(cost), ok=True)
     except Exception:
         pass
@@ -239,18 +285,24 @@ def _put(session, text, dest):
 
 
 def invoke_claude(session, prompt, model, on_start=None):
-    """Vendor invocation plus --output-format json and a spend cap. Key goes in via docker cp to a mode-600 file
-    owned by agent; the command only names the file, sources it, and deletes it before claude starts."""
+    """Vendor invocation plus --output-format json. Claude Code is pointed at the local proxy via a mode-600 env file (docker cp,
+    owned by agent, sourced then deleted before claude starts). It holds only the per-run proxy token, never the ASU key."""
     _put(session, prompt, PROMPT_PATH)
-    _put(session, f"export ANTHROPIC_API_KEY='{get_key()}'\n", KEY_PATH)
+    _put(session, f"export ANTHROPIC_BASE_URL='{PROXY_URL_IN_CONTAINER}' ANTHROPIC_AUTH_TOKEN='{PROXY_TOKEN}' "
+                  f"ANTHROPIC_MODEL='{model}' ANTHROPIC_SMALL_FAST_MODEL='{model}' ANTHROPIC_DEFAULT_HAIKU_MODEL='{model}' "
+                  f"ANTHROPIC_DEFAULT_SONNET_MODEL='{model}' ANTHROPIC_DEFAULT_OPUS_MODEL='{model}' "
+                  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_TELEMETRY=1\n", KEY_PATH)
     session.run_command(f"chown agent:agent {PROMPT_PATH} {KEY_PATH} && chmod 600 {KEY_PATH}", timeout=10)
     if on_start:
         on_start()  # from here on spend is possible
-    r = session.run_command(
-        ["su", "-", "agent", "-s", "/bin/bash", "-c",
-         f"cd /workspace && . {KEY_PATH} && rm -f {KEY_PATH} && cat {PROMPT_PATH} | {CLAUDE_BIN} -p "
-         f"--dangerously-skip-permissions --model {model} --output-format json --max-budget-usd {MAX_REPAIR_USD}"],
-        timeout=CLAUDE_TIMEOUT)
+    try:
+        r = session.run_command(
+            ["su", "-", "agent", "-s", "/bin/bash", "-c",
+             f"cd /workspace && . {KEY_PATH} && rm -f {KEY_PATH} && cat {PROMPT_PATH} | {CLAUDE_BIN} -p "
+             f"--dangerously-skip-permissions --model {model} --output-format json"],
+            timeout=REPAIR_TIMEOUT)
+    except TypeError:  # vendor bug: its timeout handler does bytes + str when the process wrote to stderr; treat as the timeout it is
+        r = SimpleNamespace(returncode=-1, stdout="", stderr="\nCommand timed out (vendor handler crashed)", timed_out=True)
     session.run_command(f"rm -f {KEY_PATH}", timeout=10)
     return r
 
@@ -370,6 +422,7 @@ def pilot(iid, skills=()):
     if iid not in allowed["development"] + allowed["selection"]:
         raise SystemExit(f"{iid} is not in the development or selection partition: refusing")
     setup()
+    start_proxy()
     inst = instances()[iid]
     try:
         rv = run_review(inst, list(skills))
