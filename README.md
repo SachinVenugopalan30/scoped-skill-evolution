@@ -77,10 +77,10 @@ Use the same `--n` and seeds across runs so cached results are reused.
 - The ASU key stays on the host. Containers get only a random per-run token that the local proxy accepts.
 
 ## Cost and safety
-- Prices are set in `reviewer.py` (`PRICE_IN`, `PRICE_OUT`, $ per 1M tokens, currently 0.027 / 1.49). Confirm they match your hosting terms, or set both to 0 if it is free. Repair cost is computed from token usage at these prices, not from Claude Code's own cost field.
+- ASU hosting is free for us, so `PRICE_IN` and `PRICE_OUT` in `reviewer.py` are 0 and the spend ledger records $0. Set real prices there if you move to a paid model; repair cost is computed from token usage at those prices, not from Claude Code's own cost field.
 - Every paid call checks a spend ledger (`runs/ledger.jsonl`) first. The hard cap is `CAP_USD = 22.0` in `harness.py`, and a run stops cleanly when it would exceed it. The ledger is shared across models, so old spend counts toward the cap; move the file aside to reset it.
 - Results are cached under `runs/cache/` by content, so re-running the same step is free. A run interrupted by Ctrl-C or the cap can be started again.
-- Measured on `qwen36-27b`: a pilot PR cost about $0.002 (13k input, 0.3k output tokens for the repair). The Sonnet 4.6 figure used in the report ($0.29 per PR evaluation) no longer applies.
+- Measured on `qwen36-27b`: a pilot repair used about 13k input and 0.3k output tokens. The Sonnet 4.6 figure used in the report ($0.29 per PR evaluation) no longer applies.
 - The locked **test partition is blocked in code**: `sample()` and `pilot` refuse it. Remove that guard only for the final frozen run, and run it once.
 - Benchmark Docker images are deleted by exact tag after each round and run. Nothing else on your machine is touched.
 - The key is scrubbed from everything written under `runs/` and `results/`.

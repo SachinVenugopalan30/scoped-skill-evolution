@@ -7,9 +7,8 @@ API_BASE = "https://openai.rc.asu.edu/v1"
 MAX_FINDINGS = 5
 MAX_TOKENS, RETRY_MAX_TOKENS, TEMPERATURE = 3000, 6000, 0
 MAX_DIFF_CHARS = 120_000  # ponytail: hard char cap on the diff (~30k tokens); chunk or summarize per file if big PRs matter
-# $/MTok. litellm has no price for this model, so these drive every cost figure (reviewer, optimizer, repair).
-# ponytail: 0.027/1.49 are the prices quoted for the hosted model; confirm they apply, or set both to 0 if the hosting is free.
-PRICE_IN, PRICE_OUT = 0.027, 1.49
+# $/MTok. ASU hosting is free for us, so every cost figure is 0. Set real prices here to track spend against a cap.
+PRICE_IN, PRICE_OUT = 0.0, 0.0
 
 
 def llm_kwargs():
