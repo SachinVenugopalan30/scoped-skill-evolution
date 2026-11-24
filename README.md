@@ -38,8 +38,8 @@ What changed since the progress report:
 - An ASU Voyager API key. If the endpoint is unreachable, try toggling the ASU VPN; it worked here with the
   VPN off
 - Docker Desktop (the containers reach the proxy at `host.docker.internal`)
-- Free disk: benchmark images are 2 to 4 GB each. They are downloaded per PR and removed after use, so keep
-  at least ~15 GB free
+- Free disk: benchmark images are 2 to 4 GB each (some 5.5 GB). Each PR's image is removed as soon as its
+  repair finishes, so a run holds at most `WORKERS` images; a free-space guard refuses to start below 30 GB.
 
 ## Setup
 ```bash
@@ -154,7 +154,8 @@ re-rolling. `--fresh` is the shorthand for an unrecorded random salt; it is mutu
 |---|---|
 | `VOYAGER_API_KEY` | ASU Voyager key. May live in `.env` or the environment; never commit it. |
 | `SSE_CAP_USD` | Sets a nominal spend cap for a run. Unset by default (uncapped), because ASU hosting is free; since prices are 0 this is a safety valve, not a cost measurement. |
-| `SSE_KEEP_IMAGES` | Set to `1` to keep benchmark Docker images after a run for debugging. Default is deletion by exact tag; each image is 2 to 4 GB. |
+| `SSE_KEEP_IMAGES` | Set to `1` to keep benchmark Docker images after a run for debugging. Default is deletion by exact tag immediately after each repair; each image is 2 to 4 GB. |
+| `SSE_MIN_FREE_GB` | Minimum host free space before a run and before each pull (default `30`). A full disk crashes Docker Desktop and turns into failed reviews; this guard stops cleanly instead. |
 | `SSE_WORKERS` | Parallel Docker containers (default `2`; `3` is safe on a 24 GB host, `4` is not). |
 
 ## How the model is wired
@@ -175,18 +176,19 @@ re-rolling. `--fresh` is the shorthand for an unrecorded random salt; it is mutu
   **nominal**. The authoritative ledger is **tokens and wall-clock duration** per stage in
   `runs/ledger.jsonl` (`review`, `repair`, `optimizer`), alongside the instance id and timestamp.
 - Measured on `qwen36-27b`: a pilot repair used about 13k input and 0.3k output tokens; repairs on the
-  emulated amd64 images took a median of about 6 minutes each. Each repair has a 900-second timeout. Use
-  these for planning, not dollar figures.
+  emulated amd64 images took a median of about 4-6 minutes each. Each Claude run has a 1200-second timeout and
+  `pip install -e .` gets 300 seconds. Use these for planning, not dollar figures.
 - There is no dollar cap by default (`CAP_USD` is infinite) because the model is free. Set `SSE_CAP_USD` to
   bound a run; a run then stops cleanly when the next call would exceed it. The ledger is shared across
   models, so old entries count toward the cap; move the file aside to reset it. Nominal dollars use
   `PRICE_*` and are 0 here.
 - Results are cached under `runs/cache/` by content, so re-running the same step is free. `--resume`
   continues an interrupted run; `--fresh` forces a genuine new evaluation.
-- **Benchmark images:** 2 to 4 GB each. The harness pulls one image per PR and, after each round or run,
-  deletes exactly the two tags it created for that instance. It never runs `docker prune`, never uses
-  `-f` or wildcards, and touches nothing else on the machine. `SSE_KEEP_IMAGES=1` disables cleanup (only
-  useful when debugging; expect many GB).
+- **Benchmark images:** 2 to 4 GB each. The harness pulls one image per PR and deletes exactly the two tags
+  it created for that instance as soon as the repair finishes, so at most `SSE_WORKERS` images exist at once.
+  It never runs `docker prune`, never uses `-f` or wildcards, and touches nothing else on the machine. A
+  preflight free-space check (`SSE_MIN_FREE_GB`, default 30 GB) refuses to start on a nearly full disk.
+  `SSE_KEEP_IMAGES=1` disables cleanup (only useful when debugging; expect many GB).
 - The key is scrubbed from everything written under `runs/` and `results/`.
 
 ## Guarded test partition
@@ -211,7 +213,8 @@ Archived outputs:
 - **Docker CPU load:** the amd64 images run under emulation. In Docker Desktop, limit CPUs
   (Settings → Resources) and try "Use Rosetta for x86_64/amd64 emulation" (Settings → General).
 - **Disk:** if Docker runs low, `docker images | grep -E 'reviewbench|c-crab-benchmark'` shows any leftover
-  benchmark images; remove them by exact tag. Prefer finishing a run and letting the harness clean up.
+  benchmark images; remove them by exact tag. `df -h` and `docker system df` show host and Docker usage. The
+  harness now removes each image immediately and refuses to start below 30 GB free.
 
 ## Layout
 | File | Purpose |

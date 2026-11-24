@@ -1,5 +1,5 @@
 """Spend ledger, content-addressed cache, Docker repair run scored on Stage 4 tests, pilot CLI."""
-import argparse, atexit, hashlib, json, math, os, re, secrets, subprocess, sys, tempfile, threading, time, urllib.request, uuid, warnings, zipfile
+import argparse, atexit, hashlib, json, math, os, re, secrets, shutil, subprocess, sys, tempfile, threading, time, urllib.request, uuid, warnings, zipfile
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
@@ -55,8 +55,10 @@ MAX_REPAIR_USD = 0.0 if reviewer.PRICE_IN == 0 and reviewer.PRICE_OUT == 0 else 
 REVIEW_RESERVE_USD = 0.3
 REPAIR_MODEL = "qwen36-27b"  # alias served by the local proxy (below)
 WORKERS = int(os.environ.get("SSE_WORKERS", "2"))  # Docker has 8 GB; 3 is safe on a 24 GB host, 4 is not
-REPAIR_TIMEOUT = 900       # seconds per repair run; overrides the vendor's CLAUDE_TIMEOUT (600)
+REPAIR_TIMEOUT = 1200      # seconds per Claude run; overrides the vendor's CLAUDE_TIMEOUT (600)
+PIP_TIMEOUT = 300          # seconds for `pip install -e .`; emulated amd64 builds exceed 120 s on large repos
 KEEP_IMAGES = os.environ.get("SSE_KEEP_IMAGES") == "1"  # debug: leave benchmark images in place
+MIN_FREE_GB = float(os.environ.get("SSE_MIN_FREE_GB", "30"))  # refuse to pull/start below this much host disk
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 NO_IMAGE = {"python__cpython-104029@f78e70e"}
 EXT = {"python": ".py", "javascript": ".test.js", "typescript": ".test.ts", "go": "_test.go"}
@@ -77,6 +79,21 @@ def setup():
     get_key.cache_clear()
     if not get_key():
         raise SystemExit("VOYAGER_API_KEY is empty or missing: set it in .env (project root) or the environment")
+    check_disk()
+
+
+def free_gb(path=None):
+    return shutil.disk_usage(path or ROOT).free / 1e9
+
+
+def check_disk(min_free_gb=None):
+    """A full disk crashes Docker Desktop and silently turns into failed reviews. Refuse to start, and say how to fix it."""
+    need = MIN_FREE_GB if min_free_gb is None else min_free_gb
+    free = free_gb()
+    if free < need:
+        raise SystemExit(f"only {free:.1f} GB free; need {need:.0f} GB before a run. "
+                         f"Remove leftover benchmark images: docker images | grep -E 'c-crab-benchmark|reviewbench'")
+    return free
 
 
 def _stop_proxy():
@@ -267,7 +284,8 @@ def remove_image(iid):
 
 
 def cleanup_images():
-    """Remove every image ensure_image handed out in this run. Call between rounds/at the end, never mid-round."""
+    """Remove every image ensure_image handed out and still tracked. Safe to call at any time; run_repair normally removes
+    its own image, so this is a backstop for stops and crashes."""
     if KEEP_IMAGES:
         print("SSE_KEEP_IMAGES=1: keeping benchmark images")
         return 0
@@ -280,7 +298,16 @@ def cleanup_images():
     return n
 
 
+def _forget_image(iid):
+    """Drop one image as soon as its repair is done, so a run holds at most WORKERS images (~15 GB), not the whole split."""
+    with _img_lock:
+        _used_images.discard(iid)
+    remove_image(iid)
+
+
 def ensure_image(iid):
+    if free_gb() < MIN_FREE_GB:
+        raise RuntimeError(f"only {free_gb():.1f} GB free; refusing to pull {iid} (SSE_MIN_FREE_GB={MIN_FREE_GB:.0f})")
     with _img_lock:
         _used_images.add(iid)
     img = get_docker_image_name(iid)
@@ -382,8 +409,10 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
     def mark():
         nonlocal invoked
         invoked = True
+    img_ok = False
     try:
         ensure_image(iid)
+        img_ok = True
         session.start()
         setup_claude_in_container(session)
         ver = session.run_command(["su", "-", "agent", "-s", "/bin/bash", "-c", f"{CLAUDE_BIN} --version"], timeout=60)
@@ -394,9 +423,9 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         if reset.returncode != 0:
             return done(error=f"git checkout failed: {reset.stderr[:300]}")
         if lang == "python":
-            pip0 = session.run_command("pip install -e . --no-deps --quiet", timeout=120)
+            pip0 = session.run_command("pip install -e . --no-deps --quiet", timeout=PIP_TIMEOUT)
             if getattr(pip0, "timed_out", False):
-                return done(error="pip install timed out before the agent started")
+                return done(error=f"pip install timed out ({PIP_TIMEOUT}s) before the agent started")
         prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])  # vendor prompt, unchanged
         r = invoke_claude(session, prompt, model, mark)  # sets `invoked` right before the Claude run; earlier failures cost $0
         write_json(RAW / f"{iid.replace('/', '__')}_{uuid.uuid4().hex[:8]}.json",
@@ -434,9 +463,9 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         if not dirty:
             return done(passed=False)  # no changes = failed tests, not an infra error
         if lang == "python":
-            pip1 = session.run_command("pip install -e . --no-deps --quiet", timeout=120)
+            pip1 = session.run_command("pip install -e . --no-deps --quiet", timeout=PIP_TIMEOUT)
             if getattr(pip1, "timed_out", False):
-                return done(error="pip install timed out before tests")
+                return done(error=f"pip install timed out ({PIP_TIMEOUT}s) before tests")
         timed_out_test = False
         for pc, (ci, i, e) in zip(res["per_comment"], tests):
             ok, out = verify_with_test(session, e["test_code"], f"test_review_comment_{i}{EXT.get(lang, '.py')}", lang)
@@ -459,7 +488,11 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
             res["cost_usd"] = MAX_REPAIR_USD  # paid model: unknown cost after the agent started
         return done(error=f"{type(e).__name__}: {e}"[:500])
     finally:
-        session.remove(force=True)
+        try:
+            session.remove(force=True)
+        finally:
+            if img_ok and not KEEP_IMAGES:
+                _forget_image(iid)  # bound disk to ~WORKERS images instead of the whole split
 
 
 # ---------- budgeted, cached entry points ----------
