@@ -77,13 +77,35 @@ GOOD = '[{"file": "a.py", "line": 3, "issue_header": "h", "issue_content": "c"}]
 
 def test_gate():
     g = evolve.gate
-    assert g({"a": False}, {"a": True}) == {"accept": True, "gained": 1, "regressed": 0, "excluded": []}
+    assert g({"a": False}, {"a": True}) == {"accept": True, "gained": 1, "regressed": 0, "net": 1, "excluded": []}
     assert not g({"a": False, "b": True}, {"a": False, "b": True})["accept"]
     assert g({"a": False, "b": False, "c": True, "d": False}, {"a": True, "b": True, "c": False, "d": False})["accept"]  # 2/1
     assert not g({"a": False, "b": False, "c": True, "d": True}, {"a": True, "b": True, "c": False, "d": False})["accept"]  # 2/2
     r = g({"a": False, "b": True}, {"a": True, "b": None})
-    assert r["regressed"] == 0 and r["excluded"] == ["b"] and r["accept"]
+    assert r["regressed"] == 0 and r["excluded"] == ["b"] and r["accept"] and r["net"] == 1
     assert g({"a": None}, {"a": True})["gained"] == 0
+    # net is always gained - regressed, and errored PRs are excluded from both counts
+    r = g({"a": False, "b": False, "c": True}, {"a": True, "b": False, "c": None})
+    assert (r["gained"], r["regressed"], r["net"], r["excluded"]) == (1, 0, 1, ["c"])
+    # thresholds: NET gain (gained - regressed) must reach min_gain, and regressions stay at or below max_regress
+    base = {"a": False, "b": True, "c": False}
+    cand = {"a": True, "b": True, "c": False}
+    r = g(base, cand, min_gain=2)
+    assert (r["gained"], r["regressed"], r["net"]) == (1, 0, 1) and not r["accept"]
+    assert g(base, cand, min_gain=1)["accept"]
+    # one gain and one regression is net zero, so it must not pass a min_gain=1 gate even though gained == 1
+    tie_base = {"a": False, "b": True}
+    tie_cand = {"a": True, "b": False}
+    r = g(tie_base, tie_cand, min_gain=1, max_regress=1)
+    assert (r["gained"], r["regressed"], r["net"]) == (1, 1, 0) and not r["accept"]
+    # two gains and one regression (net +1): tolerated only when max_regress allows the regression
+    swap_base = {"a": True, "b": False, "c": False}
+    swap_cand = {"a": False, "b": True, "c": True}
+    r = g(swap_base, swap_cand)
+    assert (r["gained"], r["regressed"], r["net"]) == (2, 1, 1)
+    assert not g(swap_base, swap_cand, max_regress=0)["accept"]
+    assert g(swap_base, swap_cand, max_regress=1)["accept"]
+    assert not g({}, {})["accept"] and g({}, {})["net"] == 0
     rep = {"error": None, "per_comment": [{"comment_index": 0, "passed": True}, {"comment_index": 1, "passed": False}]}
     assert harness.pr_passed(rep) is False
     assert harness.pr_passed({**rep, "error": "x"}) is None
@@ -123,11 +145,35 @@ def test_retrieval():
     lib = [{"id": "s1", "scope": "global", "text": "check inputs"}, {"id": "s2", "scope": "bug_fix", "text": "check null"},
            {"id": "s3", "scope": "feature", "text": "check docs"}, {"id": "s4", "scope": "global", "text": "check errors"}]
     ids = lambda c, t, b=400, l=lib: [s["id"] for s in evolve.retrieve(l, t, c, b)]
-    assert ids("scoped", "bug_fix") == ["s2", "s1", "s4"]  # type-scoped first, then global; excludes other types
-    assert ids("scoped", "other") == ["s1", "s4"]
+    # type-scoped first, then global; newest-first within each group (legacy list position = order)
+    assert ids("scoped", "bug_fix") == ["s2", "s4", "s1"]
+    assert ids("scoped", "other") == ["s4", "s1"]
     assert ids("static", "bug_fix") == []
-    assert ids("global", "bug_fix") == ["s1", "s4"]  # global condition never sees non-global
+    assert ids("global", "bug_fix") == ["s4", "s1"]  # global condition never sees non-global
+    # explicit orders: newest (highest order) first inside the type group, then inside global
+    ordered = [{"id": "g_old", "scope": "global", "text": "g old", "order": 1},
+               {"id": "g_new", "scope": "global", "text": "g new", "order": 9},
+               {"id": "b_old", "scope": "bug_fix", "text": "b old", "order": 2},
+               {"id": "b_new", "scope": "bug_fix", "text": "b new", "order": 8}]
+    assert [s["id"] for s in evolve.retrieve(ordered, "bug_fix", "scoped")] == ["b_new", "b_old", "g_new", "g_old"]
+    # hard cap on retrieved skills, newest first
+    many = [{"id": f"g{i}", "scope": "global", "text": f"skill {i}", "order": i} for i in range(1, 11)]
+    got = evolve.retrieve(many, "bug_fix", "scoped")
+    assert evolve.MAX_SKILLS == 6 and [s["id"] for s in got] == ["g10", "g9", "g8", "g7", "g6", "g5"]
+    # dedup: normalized duplicate texts are injected once, at the position of the newest copy
+    dup = [{"id": "a", "scope": "global", "text": "Check Inputs", "order": 1},
+           {"id": "b", "scope": "global", "text": "  check   INPUTS ", "order": 4},
+           {"id": "c", "scope": "global", "text": "other", "order": 3}]
+    assert [s["id"] for s in evolve.retrieve(dup, "bug_fix", "scoped")] == ["b", "c"]
+    # just-added skills are newest and therefore retrieved first
+    added = evolve.apply_edits([], [{"op": "add", "scope": "bug_fix", "text": "fresh guidance"}])
+    assert added[0]["order"] == 1 and [s["id"] for s in evolve.retrieve(added, "bug_fix", "scoped")] == ["s1"]
+    added = evolve.apply_edits(added, [{"op": "add", "scope": "bug_fix", "text": "newer guidance"}])
+    assert [s["id"] for s in evolve.retrieve(added, "bug_fix", "scoped")] == ["s2", "s1"]
     tok = lambda t: litellm.token_counter(model=reviewer.MODEL, text=t)
+    # the default budget is 400 tokens of injected skill text
+    assert evolve.RETRIEVAL_BUDGET == 400
+    assert tok("\n".join(s["text"] for s in got)) <= evolve.RETRIEVAL_BUDGET
     big = {"id": "g1", "scope": "global", "text": "word " * 60}
     small = {"id": "g2", "scope": "global", "text": "tiny"}
     typed = {"id": "t1", "scope": "bug_fix", "text": "typed skill"}
@@ -274,7 +320,8 @@ def test_cache():
         calls = []
         ok = lambda: [{"comment_index": 0, "passed": True}]
         def billed_err(inst, findings, model):
-            calls.append(1); return {"per_comment": ok(), "cost_usd": harness.MAX_REPAIR_USD, "error": "claude timed out"}
+            # a billed error (cost > 0) is cached; MAX_REPAIR_USD is 0 under the free model, so use a real cost
+            calls.append(1); return {"per_comment": ok(), "cost_usd": 0.01, "error": "claude timed out"}
         with mock.patch.object(harness, "run_repair", billed_err):
             r1 = harness.repair_pr(INST, f); sp = harness.spent(); r2 = harness.repair_pr(INST, f)
         assert len(calls) == 1 and r2["cached"] and r2["error"] and r2["cost_usd"] == 0 and harness.spent() == sp
@@ -338,14 +385,16 @@ def test_sample_scrub_optimizer():
     lib = [{"id": "s1", "scope": "global", "text": "old"}]
     raw = json.dumps([{"op": "add", "scope": "bug_fix", "text": "w " * 100}, {"op": "replace", "id": "nope", "text": "x"},
                       {"op": "delete", "id": "s1"}, {"op": "add", "scope": "feature", "text": "third"}, {"op": "zap"}])
+    assert evolve.MAX_EDITS == 1
     ed = evolve.parse_edits(raw, lib, "scoped")
-    assert len(ed) == 2 and ed[0]["scope"] == "bug_fix" and len(ed[0]["text"].split()) == 60 and ed[1] == {"op": "delete", "id": "s1"}
+    assert len(ed) == 1 and ed[0]["scope"] == "bug_fix" and len(ed[0]["text"].split()) == 60
     assert all(e["scope"] == "global" for e in evolve.parse_edits(raw, lib, "global") if e["op"] == "add")
-    assert evolve.apply_edits(lib, ed) == [{"id": "s2", "scope": "bug_fix", "text": ed[0]["text"]}]
+    assert evolve.apply_edits(lib, ed) == [{"id": "s1", "scope": "global", "text": "old", "order": 0},
+                                           {"id": "s2", "scope": "bug_fix", "text": ed[0]["text"], "order": 1}]
     # propose_edits: asserts clean right before the call, records cost, refuses forbidden content
     with tmp_state(), mock.patch.object(litellm, "completion", lambda **kw: fake_resp(raw)), mock.patch.object(litellm, "completion_cost", return_value=0.02):
         out = evolve.propose_edits(lib, [{"pr_type": "other", "findings": [], "passed": 0, "total": 1}], "global", ["LEAKME"])
-        assert len(out) == 2 and harness.spent() == 0.02
+        assert len(out) == 1 and harness.spent() == 0.02
         try:
             evolve.propose_edits(lib, [{"x": "LEAKME"}], "global", ["LEAKME"]); raise SystemExit("leak allowed")
         except ValueError:
@@ -434,8 +483,9 @@ def test_repair_failures():
         r, _ = repair_with(cj(is_error=False, subtype="success", result="ok"), diff="diff --git a b", passed=True)
         assert r["error"] is None and {p["passed"] for p in r["per_comment"]} == {True} and r["claude_version"].startswith("2.1")
         assert list(harness.RAW.glob("*.json"))  # raw output kept
-        # auth / credit / rate-limit: fatal, stops the run, no phantom charge, no secret in the message
-        for msg in ("Invalid API key · Please run /login", "Credit balance is too low", "API Error: 429 rate_limit_error", "Claude usage limit reached"):
+        # auth / credit: fatal, stops the run at once, no phantom charge, no secret in the message.
+        # Rate limits are transient (see test_rate_limit_retry), so they are not in this list.
+        for msg in ("Invalid API key · Please run /login", "Credit balance is too low"):
             spent0 = harness.spent()
             try:
                 with mock.patch.object(harness, "CACHE", harness.CACHE / msg[:5]):
@@ -616,11 +666,11 @@ def test_image_cleanup():
         except harness.BudgetExceeded:
             pass
     assert n == [1]
-    # each finished round cleans up once (not mid-round)
+    # run_round leaves image cleanup to the caller (the CLI cleans after each finished round, never mid-round)
     n = []
     with mock.patch.object(harness, "cleanup_images", lambda: n.append(1)):
         test_round()
-    assert n == [1, 1, 1], n  # test_round runs 3 rounds
+    assert n == [], n  # test_round runs 3 rounds and never cleans up inside run_round
 
 
 def test_proxy_hook():
@@ -635,8 +685,318 @@ def test_proxy_hook():
     assert "system" not in d and len(d["messages"]) == 1
 
 
+def test_cap_env():
+    """SSE_CAP_USD parsing at import; check_budget is a no-op when the cap is disabled."""
+    import importlib
+    prev = os.environ.get("SSE_CAP_USD")
+    try:
+        for raw, want in (("5", 5.0), ("0.25", 0.25), ("", float("inf")), ("nan", float("inf")),
+                          ("garbage", float("inf")), ("inf", float("inf"))):
+            with mock.patch.dict(os.environ, {"SSE_CAP_USD": raw}, clear=False):
+                importlib.reload(harness)
+                assert harness.CAP_USD == want, (raw, harness.CAP_USD)
+    finally:
+        if prev is None:
+            os.environ.pop("SSE_CAP_USD", None)
+        else:
+            os.environ["SSE_CAP_USD"] = prev
+        importlib.reload(harness)  # restore the module constants used by the other tests
+    with tmp_state():
+        harness.record("review", "x", 9.0)
+        for cap in (None, float("inf")):  # cap disabled: no accounting, never raises
+            with mock.patch.object(harness, "CAP_USD", cap):
+                harness.check_budget(1e12)
+        with mock.patch.object(harness, "CAP_USD", 10.0):
+            try:
+                harness.check_budget(2.0); raise SystemExit("cap not enforced")
+            except harness.BudgetExceeded:
+                pass
+
+
+def test_ledger_tokens():
+    """The authoritative ledger records tokens, duration and model alongside the (nominal) cost."""
+    with tmp_state():
+        tokens = {"input_tokens": 11, "output_tokens": 7, "cache_creation_input_tokens": 2, "cache_read_input_tokens": 3}
+        harness.record("repair", "owner__repo-1@abc1234", 0.0, tokens=tokens, duration_s=12.5, model="qwen36-27b")
+        rec = json.loads(harness.LEDGER.read_text().splitlines()[0])
+        assert rec["kind"] == "repair" and rec["instance"] == "owner__repo-1@abc1234" and rec["cost"] == 0.0
+        assert rec["tokens"] == tokens and rec["duration_s"] == 12.5 and rec["model"] == "qwen36-27b" and "ts" in rec
+        harness.record("review", "x", 0.03)
+        rec = json.loads(harness.LEDGER.read_text().splitlines()[-1])
+        assert rec["cost"] == 0.03 and not ({"tokens", "duration_s", "model"} & set(rec))
+        assert abs(harness.spent() - 0.03) < 1e-9
+
+
+def test_vendor_timeout_wrapper():
+    """A vendor timeout with bytes on stderr (bytes + str -> TypeError) is turned into a timed_out result."""
+    class S:
+        container_id, _name = "cid", "sse-test"
+        def start(self):
+            pass
+    s = S()
+    s.run_command = harness.DockerContainerSession.run_command.__get__(s)
+
+    def timeout(*a, **k):
+        raise subprocess.TimeoutExpired(["docker", "exec", "n"], 5, output=b"out", stderr=b"err")
+    with mock.patch.object(subprocess, "run", timeout):
+        r = s.run_command(["echo", "x"], timeout=5)
+    assert r.timed_out and r.returncode == -1 and "timed out" in r.stderr
+    # any other TypeError is not swallowed
+    with mock.patch.object(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(TypeError("other boom"))):
+        try:
+            s.run_command(["echo"], timeout=5); raise SystemExit("swallowed an unrelated TypeError")
+        except TypeError as e:
+            assert "other boom" in str(e)
+
+
+def test_rate_limit_retry():
+    """A rate-limited repair is retried with bounded backoff; every attempt is recorded exactly once."""
+    f = [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+    calls, sleeps = [], []
+    def limited(inst, findings, model):
+        calls.append(1)
+        return {"per_comment": [{"comment_index": 0, "passed": None}], "cost_usd": 0.02,
+                "error": "API Error: 429 rate_limit_error"}
+    with tmp_state():
+        with mock.patch.object(harness, "run_repair", limited), mock.patch.object(time, "sleep", lambda s: sleeps.append(s)):
+            try:
+                harness.repair_pr(INST, f); raise SystemExit("rate limit not fatal")
+            except harness.FatalRunError as e:
+                assert "after 2 retries" in str(e)
+        ledger = [json.loads(l) for l in harness.LEDGER.read_text().splitlines()]
+        assert len(calls) == 1 + len(harness.RATE_LIMIT_SLEEPS) == 3  # bounded retries
+        assert sleeps == list(harness.RATE_LIMIT_SLEEPS)
+        assert len(ledger) == 3 and [r["kind"] for r in ledger] == ["repair"] * 3
+        assert abs(sum(r["cost"] for r in ledger) - 3 * 0.02) < 1e-9  # one record per attempt, no double charge
+        # a later success returns normally: exactly one charge per attempt
+        spent0 = harness.spent()
+        calls.clear()
+        seq = iter([{"per_comment": [{"comment_index": 0, "passed": None}], "cost_usd": 0.02, "error": "rate_limit_error"},
+                    {"per_comment": [{"comment_index": 0, "passed": True}], "cost_usd": 0.5, "error": None}])
+        f2 = [{"file": "b.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+        with mock.patch.object(harness, "run_repair", lambda *a, **k: calls.append(1) or next(seq)), \
+                mock.patch.object(time, "sleep", lambda s: None):
+            r = harness.repair_pr(INST, f2)
+        assert len(calls) == 2 and r["error"] is None and r["cost_usd"] == 0.5
+        assert abs(harness.spent() - spent0 - 0.52) < 1e-9  # both attempts charged once
+
+
+def test_feedback_aggregation():
+    """build_feedback aggregates per type, caps examples and findings, and carries rejected edits."""
+    library = [{"id": "s1", "scope": "global", "text": "one", "order": 1},
+               {"id": "s2", "scope": "global", "text": "two", "order": 2}]
+    recs = []
+    for i in range(15):
+        ok = i % 2 == 0  # even PRs pass all of their comments; odd PRs fail all of them
+        recs.append({"instance_id": f"owner/repo-{i}@sha", "repo": "owner/repo",
+                     "pr_type": ("bug_fix", "feature", "other")[i % 3], "passed": ok,
+                     "per_comment": [{"comment_index": k, "passed": ok} for k in range(2)],
+                     "findings": [{"file": f"src/f{i}.py", "issue_header": f"header {i} src/f{i}.py",
+                                   "issue_content": "body owner/repo-1@sha"}] * 5,
+                     "skill_ids": ["s1", "s2"], "error": None})
+    recs.append({"instance_id": "err/repo@x", "repo": "err/repo", "pr_type": "bug_fix", "passed": None,
+                 "per_comment": [], "findings": [], "skill_ids": ["s1"], "error": "boom"})
+    rejected = [{"op": "add", "scope": "global", "text": "bad owner/repo", "outcome": "rejected"} for _ in range(15)]
+    rejected.append({"op": "add", "text": "accepted edit", "outcome": "accepted"})
+    fb = evolve.build_feedback(recs, library, "global", rejected)
+    assert fb["overall"] == {"prs": 16, "passed_prs": 8, "comments_passed": 16, "comments_total": 30, "errors": 1}
+    assert fb["by_type"]["bug_fix"] == {"prs": 6, "passed_prs": 3, "comments_passed": 6, "comments_total": 10}
+    assert fb["by_type"]["feature"] == {"prs": 5, "passed_prs": 2, "comments_passed": 4, "comments_total": 10}
+    assert fb["by_type"]["other"] == {"prs": 5, "passed_prs": 3, "comments_passed": 6, "comments_total": 10}
+    assert len(fb["examples"]) == 12  # cap 12, non-errored only
+    # examples carry comments passed/total; failed PRs come first (0/2), then passing ones (2/2)
+    assert [e["passed"] for e in fb["examples"]] == [0] * 7 + [2] * 5
+    assert all(e["total"] == 2 for e in fb["examples"])
+    assert all(len(e["findings"]) == 3 for e in fb["examples"])  # at most 3 findings each
+    assert fb["skills"]["s1"] == {"retrieved": 16, "passed_prs": 8}
+    assert fb["skills"]["s2"] == {"retrieved": 15, "passed_prs": 8}
+    assert len(fb["rejected"]) == 12 and all(e["outcome"] == "rejected" for e in fb["rejected"])
+    assert "accepted edit" not in json.dumps(fb)
+    # sanitizer: the exact payload passes assert_clean, and a leaky payload is rejected
+    assert "owner/repo" not in json.dumps(fb) and "owner/repo-1@sha" not in json.dumps(fb)
+    evolve.assert_clean(fb, evolve._feedback_forbid(recs)[1])
+    with mock.patch.object(evolve, "_clean", lambda t, f: str(t)):  # disable cleaning: the final assert must catch it
+        try:
+            evolve.build_feedback(recs, library, "global", rejected); raise SystemExit("forbidden string leaked")
+        except ValueError:
+            pass
+
+
+def test_eligible_test_guard():
+    """The test partition is refused unless unlocked, and unlocking requires a matching FROZEN.json code_sha."""
+    try:
+        evolve.eligible("test"); raise SystemExit("eligible allowed the locked test partition")
+    except ValueError:
+        pass
+    split_text = (data.ROOT / "results/splits.json").read_text()
+    test_ids = json.loads(split_text)["instance_ids"]["test"]
+    with tempfile.TemporaryDirectory() as raw:
+        root = Path(raw)
+        (root / "results").mkdir()
+        (root / "results/splits.json").write_text(split_text)
+        manifest = {"harness.py": "h", "evolve.py": "e", "reviewer.py": "r", "data.py": "d", "proxy_hooks.py": "p"}
+        with mock.patch.object(evolve, "ROOT", root), mock.patch.object(evolve, "_code_sha", lambda: "abc123"), \
+                mock.patch.object(evolve, "_code_manifest", lambda root=None: dict(manifest)):
+            try:
+                evolve.eligible("test", allow_test=True); raise SystemExit("missing FROZEN.json accepted")
+            except RuntimeError as e:
+                assert "FROZEN.json" in str(e)
+            (root / "results/FROZEN.json").write_text(json.dumps({"code_sha": "abc123", "code_manifest": manifest}))
+            by, ex = evolve.eligible("test", allow_test=True)
+            assert set(ex) == {"no_image", "oversize"} and set(by) <= {"bug_fix", "feature", "other"}
+            assert sum(len(v) for v in by.values()) + sum(len(v) for v in ex.values()) == len(test_ids)
+            # a dirty working tree (manifest mismatch) is refused even when HEAD matches
+            (root / "results/FROZEN.json").write_text(json.dumps({"code_sha": "abc123", "code_manifest": {"harness.py": "other"}}))
+            try:
+                evolve.eligible("test", allow_test=True); raise SystemExit("dirty-tree FROZEN.json accepted")
+            except RuntimeError as e:
+                assert "code_manifest" in str(e)
+            (root / "results/FROZEN.json").write_text(json.dumps({"code_sha": "deadbeef", "code_manifest": manifest}))
+            try:
+                evolve.eligible("test", allow_test=True); raise SystemExit("mismatched FROZEN.json accepted")
+            except RuntimeError as e:
+                assert "does not match" in str(e)
+
+
+def test_fresh_cache():
+    """fresh=True salts the cache key (new evaluation, stored separately); normal calls still hit the cache."""
+    calls = []
+    def comp(**kw):
+        calls.append(1); return fake_resp(GOOD)
+    with tmp_state():
+        with mock.patch.object(litellm, "completion", comp), mock.patch.object(litellm, "completion_cost", return_value=0.05):
+            a = harness.run_review(INST, ["s"])
+            b = harness.run_review(INST, ["s"])
+            assert len(calls) == 1 and b["cached"] and b["cost_usd"] == 0 and b["findings"] == a["findings"]
+            c = harness.run_review(INST, ["s"], fresh=True)
+            assert len(calls) == 2 and not c.get("cached") and c["cost_usd"] == 0.05 and c["findings"] == a["findings"]
+            d = harness.run_review(INST, ["s"])  # the unsalted key still exists
+            assert len(calls) == 2 and d["cached"] and d["cost_usd"] == 0
+        # the fresh result was stored under a different key, so the cache has two review entries
+        assert len(list((harness.CACHE / "review").glob("*.json"))) == 2
+        rcalls = []
+        def repair(inst, findings, model):
+            rcalls.append(1)
+            return {"per_comment": [{"comment_index": 0, "passed": True}], "cost_usd": 0.0, "error": None}
+        f = [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+        with mock.patch.object(harness, "run_repair", repair):
+            r1 = harness.repair_pr(INST, f)
+            r2 = harness.repair_pr(INST, f)
+            assert len(rcalls) == 1 and r2["cached"]
+            r3 = harness.repair_pr(INST, f, fresh=True)
+            assert len(rcalls) == 2 and not r3.get("cached")
+            r4 = harness.repair_pr(INST, f)
+            assert len(rcalls) == 2 and r4["cached"] and r4["per_comment"] == r1["per_comment"]
+        assert len(list((harness.CACHE / "repair").glob("*.json"))) == 2
+
+
+def test_summarize_tokens():
+    """summarize reports tokens and wall-clock duration across PRs, including errored ones."""
+    ids = evolve.sample("development", 2, 0)
+    i0, i1 = [harness.instances()[i] for i in ids]
+    n0, n1 = len(i0["reference_review_comments"]), len(i1["reference_review_comments"])
+    res = [{"instance_id": ids[0], "repo": i0["repo"], "passed": True,
+            "per_comment": [{"comment_index": k, "passed": True} for k in range(n0)],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}, "duration_s": 2.4},
+           {"instance_id": ids[1], "repo": i1["repo"], "passed": None, "per_comment": [],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 1}, "duration_s": 1.1}]  # total derived as 4
+    sm = evolve.summarize(res)
+    assert sm["n_prs"] == 2 and sm["n_errors"] == 1 and sm["errored_prs"] == [ids[1]]
+    assert (sm["tokens"], sm["prompt_tokens"], sm["completion_tokens"]) == (19, 13, 6)
+    assert sm["duration_s"] == 3.5
+    assert sm["n_comments"] == n0 + n1 and sm["pass_rate_errors_as_failed"] == n0 / (n0 + n1)
+
+
+def test_round_logging():
+    """run_round writes one JSONL record per round with a per-PR log entry for every development PR."""
+    ids = evolve.sample("development", 2, 0)
+    insts = [harness.instances()[i] for i in ids]
+    dev = []
+    for inst in insts:
+        n = len(inst["reference_review_comments"])
+        dev.append({"instance_id": inst["instance_id"], "repo": inst["repo"], "pr_type": data.pr_type(inst),
+                    "skill_ids": [], "findings": [{"file": "a.py", "issue_header": "h", "issue_content": "c"}],
+                    "per_comment": [{"comment_index": k, "passed": True} for k in range(n)],
+                    "passed": True, "error": None, "cost_usd": 0.01,
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12}, "duration_s": 1.5})
+    edits = [{"op": "add", "scope": "global", "text": "guidance"}]
+    with tmp_state() as d, mock.patch.object(evolve, "ROOT", d), mock.patch.object(evolve, "evaluate", lambda *a, **k: dev), \
+            mock.patch.object(evolve, "propose_edits", lambda *a, **k: edits):
+        lib, rec = evolve.run_round("scoped", [], insts, insts, gated=False, run_id="rid", round_no=1)
+        path = d / "results/evolution/scoped.jsonl"
+        assert path.exists()
+        line = json.loads(path.read_text().splitlines()[0])
+    assert rec["run_id"] == "rid" and rec["round"] == 1 and rec["condition"] == "scoped"
+    assert rec["accept"] is True and rec["library_before"] == [] and len(rec["library_after"]) == 1
+    assert rec["threshold"] == {"min_gain": 1, "max_regress": 1} and rec["dev_passed"] == {r["instance_id"]: True for r in dev}
+    assert len(rec["prs"]) == len(dev)
+    keys = {"instance_id", "repo", "pr_type", "skill_ids", "findings", "passed", "error", "cost_usd", "usage", "duration_s"}
+    for logged, want in zip(rec["prs"], dev):
+        assert set(logged) == keys
+        assert logged["instance_id"] == want["instance_id"] and logged["usage"] == want["usage"]
+        assert logged["duration_s"] == want["duration_s"] and logged["cost_usd"] == want["cost_usd"]
+    assert line["prs"] == rec["prs"] and line["run_id"] == "rid" and line["dev"]["tokens"] == 24
+    assert line["dev"]["duration_s"] == 3.0 and line["library_after"] == rec["library_after"]
+
+
+def test_score_library_guard():
+    """The frozen test score path requires allow_test, a matching code/library manifest, test ids and a salt, and writes once."""
+    split_text = (data.ROOT / "results/splits.json").read_text()
+    all_test = json.loads(split_text)["instance_ids"]["test"]
+    known = harness.instances()
+    test_ids = [i for i in all_test if i not in harness.NO_IMAGE
+                and len(known[i]["commit_to_review"]["patch_to_review"]) <= reviewer.MAX_DIFF_CHARS]
+    lib = [{"id": "s1", "scope": "global", "text": "general guidance", "order": 1}]
+    manifest = {"harness.py": "h", "evolve.py": "e", "reviewer.py": "r", "data.py": "d", "proxy_hooks.py": "p"}
+    with tempfile.TemporaryDirectory() as raw:
+        root = Path(raw)
+        (root / "results").mkdir()
+        (root / "results/splits.json").write_text(split_text)
+        lib_path = root / "lib.json"
+        lib_path.write_text(json.dumps(lib))
+        try:
+            evolve.score_library("test", "global", lib_path); raise SystemExit("score unlocked test")
+        except ValueError:
+            pass
+        with mock.patch.object(evolve, "ROOT", root), mock.patch.object(evolve, "_code_sha", lambda: "abc123"), \
+                mock.patch.object(evolve, "_code_manifest", lambda root=None: dict(manifest)):
+            try:
+                evolve.score_library("test", "global", lib_path, allow_test=True); raise SystemExit("no FROZEN accepted")
+            except RuntimeError:
+                pass
+            (root / "results/FROZEN.json").write_text(json.dumps({"code_sha": "abc123", "code_manifest": manifest}))
+            try:
+                evolve.score_library("test", "global", lib_path, allow_test=True); raise SystemExit("no library hash accepted")
+            except RuntimeError as e:
+                assert "library hash" in str(e)
+            (root / "results/FROZEN.json").write_text(json.dumps({"code_sha": "abc123", "code_manifest": manifest,
+                                                                  "libraries": {"global": evolve.library_sha256(lib)},
+                                                                  "test_ids": test_ids}))
+            try:
+                evolve.score_library("test", "global", lib_path, allow_test=True); raise SystemExit("no salt accepted")
+            except SystemExit as e:
+                assert "--salt" in str(e)
+            # evaluate is offline here: score writes a stamped file exactly once
+            def fake_eval(insts, library, condition, out, salt=None):
+                out += [{"instance_id": i["instance_id"], "repo": i["repo"], "passed": True,
+                         "per_comment": [{"comment_index": 0, "passed": True}], "cost_usd": 0.0, "usage": {}, "duration_s": 0.0}
+                        for i in insts]
+            with mock.patch.object(evolve, "evaluate", fake_eval), \
+                    mock.patch.object(evolve, "comment_rows", lambda r: []):
+                out = evolve.score_library("test", "global", lib_path, allow_test=True, salt="s1")
+            assert out["library_sha256"] == evolve.library_sha256(lib) and out["salt"] == "s1"
+            assert out["code_sha"] == "abc123" and (root / "results/test_global.json").exists()
+            try:
+                evolve.score_library("test", "global", lib_path, allow_test=True, salt="s1"); raise SystemExit("overwrote test score")
+            except SystemExit as e:
+                assert "already exists" in str(e)
+
+
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
-    test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_reviewer(); test_cache()
-    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops(); test_guards_and_summary(); test_image_cleanup(); test_proxy_hook()
+    test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_ledger_tokens(); test_reviewer(); test_cache()
+    test_cap_env(); test_vendor_timeout_wrapper(); test_rate_limit_retry(); test_feedback_aggregation()
+    test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops()
+    test_guards_and_summary(); test_image_cleanup(); test_proxy_hook(); test_eligible_test_guard()
+    test_fresh_cache(); test_summarize_tokens(); test_round_logging(); test_score_library_guard()
     print("all tests passed")

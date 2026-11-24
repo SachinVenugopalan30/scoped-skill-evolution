@@ -1,5 +1,5 @@
 """LLM reviewer: PR title/body/diff + skill texts -> <=5 validated findings. No gold data ever enters the prompt."""
-import json, math, os
+import inspect, json, math, os, time
 import litellm
 
 MODEL = "openai/qwen36-27b"                    # served by ASU Voyager (OpenAI-compatible)
@@ -27,6 +27,28 @@ def cost_of(resp):
         pass
     u = resp.usage
     return (u.prompt_tokens * PRICE_IN + u.completion_tokens * PRICE_OUT) / 1e6
+
+
+def _usage_delta(resp):
+    """Token delta in the same shape as harness.parse_claude's usage (input excludes cache reads, so totals do not double count)."""
+    u = resp.usage
+    pt = int(getattr(u, "prompt_tokens", 0) or 0)
+    details = getattr(u, "prompt_tokens_details", None)
+    cached = min(pt, int(getattr(details, "cached_tokens", 0) or 0)) if details is not None else 0
+    return {"input_tokens": pt - cached, "output_tokens": int(getattr(u, "completion_tokens", 0) or 0),
+            "cache_creation_input_tokens": 0, "cache_read_input_tokens": cached}
+
+
+def _on_cost_arity(on_cost):
+    """1 for legacy cost-only callbacks, 2 for (cost, usage). Inspected once so a callback is never called twice."""
+    try:
+        ps = list(inspect.signature(on_cost).parameters.values())
+    except (TypeError, ValueError):
+        return 2
+    if any(p.kind is inspect.Parameter.VAR_POSITIONAL for p in ps):
+        return 2
+    positional = [p for p in ps if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+    return 2 if len(positional) >= 2 else 1
 
 
 def build_messages(instance, skills):
@@ -85,7 +107,9 @@ def parse_findings(raw):
 
 
 def review(instance, skills, model=MODEL, on_cost=None):
+    t0 = time.time()
     msgs, cost, usage, err, findings = build_messages(instance, skills), 0.0, {"prompt_tokens": 0, "completion_tokens": 0}, None, []
+    arity = _on_cost_arity(on_cost) if on_cost else 0  # callbacks may take (cost) or (cost, usage)
     for attempt in range(2):  # unparseable output is retried once, with a different request
         if attempt:
             msgs = msgs[:-1] + [{**msgs[-1], "content": msgs[-1]["content"] + "\n\nYour previous reply was not valid JSON. "
@@ -95,11 +119,14 @@ def review(instance, skills, model=MODEL, on_cost=None):
         c = cost_of(resp)
         cost += c
         if on_cost:
-            on_cost(c)  # spend is recorded per attempt, so a failure later cannot lose it
+            # spend and tokens are recorded per attempt, so a failure later cannot lose them
+            on_cost(c, _usage_delta(resp)) if arity > 1 else on_cost(c)
         usage["prompt_tokens"] += resp.usage.prompt_tokens
         usage["completion_tokens"] += resp.usage.completion_tokens
         parsed = parse_findings(resp.choices[0].message.content or "")
         if parsed is not None:
-            return {"findings": parsed, "cost_usd": cost, "usage": usage}
+            return {"findings": parsed, "cost_usd": cost, "usage": usage, "attempted": True,
+                    "duration_s": round(time.time() - t0, 1)}
         err = "unparseable reviewer output"
-    return {"findings": [], "cost_usd": cost, "usage": usage, "error": err}
+    return {"findings": [], "cost_usd": cost, "usage": usage, "error": err, "attempted": True,
+            "duration_s": round(time.time() - t0, 1)}

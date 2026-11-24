@@ -1,0 +1,49 @@
+{
+ "static_dev": {
+  "n_prs": 12,
+  "n_comments": 16,
+  "passed": 4,
+  "rate": 0.25,
+  "ci95": [
+   0.0476,
+   0.4286
+  ]
+ },
+ "released_same_comments": {
+  "n_comments": 16,
+  "passed": {
+   "claude-code": 4,
+   "codex": 2,
+   "devin": 4,
+   "pr-agent": 4,
+   "union": 4
+  },
+  "prs_all_pass": {
+   "claude-code": 3,
+   "codex": 1,
+   "devin": 3,
+   "pr-agent": 3,
+   "union": 3
+  },
+  "ours_prs_all_pass": 3
+ },
+ "n_errors": 1,
+ "errored_prs": [
+  "sympy__sympy-11818@ab1bcd5"
+ ],
+ "cost_usd": 2.5367,
+ "findings_per_pr": [
+  5,
+  5,
+  5,
+  3,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5
+ ]
+}

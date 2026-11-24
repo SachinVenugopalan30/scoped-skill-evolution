@@ -1,0 +1,113 @@
+{
+  "static_dev": {
+    "n_prs": 12,
+    "n_comments": 16,
+    "passed": 3,
+    "rate": 0.1875,
+    "ci95": [
+      0.043478260869565216,
+      0.3333333333333333
+    ],
+    "n_errors": 2,
+    "pass_rate_excl_errors": 0.21428571428571427,
+    "excluded": {
+      "no_image": 0,
+      "oversize": 3
+    }
+  },
+  "released_same_comments": {
+    "n_comments": 16,
+    "passed": {
+      "claude-code": 4,
+      "codex": 2,
+      "devin": 4,
+      "pr-agent": 4,
+      "union": 4
+    },
+    "prs_all_pass": {
+      "claude-code": 3,
+      "codex": 1,
+      "devin": 3,
+      "pr-agent": 3,
+      "union": 3
+    },
+    "ours_prs_all_pass": 2,
+    "n_prs": 12
+  },
+  "evolution": {
+    "global": {
+      "accepted": false,
+      "gained": 0,
+      "regressed": 0,
+      "sel_base": {
+        "n_prs": 8,
+        "n_errors": 2,
+        "errored_prs": [
+          "marimo-team__marimo-4080@8a73f89",
+          "scikit-learn__scikit-learn-29442@3a19575"
+        ],
+        "n_comments": 9,
+        "passed": 3,
+        "pass_rate_errors_as_failed": 0.3333333333333333,
+        "pass_rate_excl_errors": 0.42857142857142855
+      },
+      "sel_new": {
+        "n_prs": 8,
+        "n_errors": 1,
+        "errored_prs": [
+          "scikit-learn__scikit-learn-29442@3a19575"
+        ],
+        "n_comments": 9,
+        "passed": 3,
+        "pass_rate_errors_as_failed": 0.3333333333333333,
+        "pass_rate_excl_errors": 0.375
+      },
+      "edit_scopes": [
+        "global",
+        "global"
+      ],
+      "cost_usd": 0.75
+    },
+    "scoped": {
+      "accepted": false,
+      "gained": 0,
+      "regressed": 0,
+      "sel_base": {
+        "n_prs": 8,
+        "n_errors": 2,
+        "errored_prs": [
+          "marimo-team__marimo-4080@8a73f89",
+          "scikit-learn__scikit-learn-29442@3a19575"
+        ],
+        "n_comments": 9,
+        "passed": 3,
+        "pass_rate_errors_as_failed": 0.3333333333333333,
+        "pass_rate_excl_errors": 0.42857142857142855
+      },
+      "sel_new": {
+        "n_prs": 8,
+        "n_errors": 0,
+        "errored_prs": [],
+        "n_comments": 9,
+        "passed": 3,
+        "pass_rate_errors_as_failed": 0.3333333333333333,
+        "pass_rate_excl_errors": 0.3333333333333333
+      },
+      "edit_scopes": [
+        "bug_fix",
+        "feature"
+      ],
+      "cost_usd": 0.0
+    }
+  },
+  "cost": {
+    "total_usd": 1.25,
+    "cap_code": 22.0,
+    "n_repairs": 32,
+    "n_reviews": 36,
+    "n_optimizer": 2,
+    "mean_per_pr_eval_usd": 0.039,
+    "mean_repair_usd": 0.039,
+    "mean_review_usd": 0.0
+  }
+}

@@ -14,19 +14,50 @@ sys.path.insert(0, str(VENDOR))  # vendor is import-only, never modified
 from execution.container_runtime import DockerContainerSession, docker_image_exists, get_docker_image_name  # noqa: E402
 from pipeline.agent_resolver import CLAUDE_TIMEOUT, build_tool_prompt, setup_claude_in_container, verify_with_test  # noqa: E402
 
+
+def _wrap_vendor_run_command():
+    """The vendor timeout handler does `exc.stderr + str` and dies with "can't concat str to bytes" when the process wrote to
+    stderr. Treat that as the timeout it is, instead of crashing the whole run; vendor/ stays untouched."""
+    if getattr(DockerContainerSession.run_command, "_sse_timeout_guard", False):
+        return
+    orig = DockerContainerSession.run_command
+
+    def run_command(self, *args, **kwargs):
+        try:
+            return orig(self, *args, **kwargs)
+        except TypeError as e:
+            if "can't concat str to bytes" not in str(e):
+                raise
+            return SimpleNamespace(returncode=-1, stdout="", stderr="\nCommand timed out (vendor timeout handler crash)",
+                                   timed_out=True)
+
+    run_command._sse_timeout_guard = True
+    DockerContainerSession.run_command = run_command
+
+
+_wrap_vendor_run_command()
+
 os.environ.setdefault("DOCKER_DEFAULT_PLATFORM", "linux/amd64")
 ENV_FILE = ROOT / ".env"
 TESTGEN_ZIP = VENDOR / "raw_results_compressed/testgen_combined.zip"
 LEDGER = ROOT / "runs/ledger.jsonl"
 CACHE = ROOT / "runs/cache"
 RAW = ROOT / "runs/raw"   # scrubbed raw claude output per repair run
-HARNESS_VERSION = "4"     # bump when repair flow/scoring changes: invalidates repair cache
-CAP_USD = 22.0
-MAX_REPAIR_USD = 0.25      # charge when a repair's real cost is unknown (timeout, unparseable); well above the ~$0.02 typical run at the quoted prices
+HARNESS_VERSION = "5"     # bump when repair flow/scoring changes: invalidates repair cache
+try:
+    CAP_USD = float(os.environ.get("SSE_CAP_USD", "inf"))  # uncapped by default: ASU hosting is free
+    if math.isnan(CAP_USD):
+        CAP_USD = float("inf")
+except ValueError:  # empty/garbage env value: uncapped rather than crashing at import
+    CAP_USD = float("inf")
+# Free model: an unknown-cost repair is $0. Paid model: charge the max so an unparseable/timeout run is never undercounted.
+MAX_REPAIR_USD = 0.0 if reviewer.PRICE_IN == 0 and reviewer.PRICE_OUT == 0 else 0.25
 REVIEW_RESERVE_USD = 0.3
 REPAIR_MODEL = "qwen36-27b"  # alias served by the local proxy (below)
-WORKERS = 2                # Docker has 8 GB
-REPAIR_TIMEOUT = CLAUDE_TIMEOUT  # seconds per repair run (vendor: 600)
+WORKERS = int(os.environ.get("SSE_WORKERS", "2"))  # Docker has 8 GB; 3 is safe on a 24 GB host, 4 is not
+REPAIR_TIMEOUT = 900       # seconds per repair run; overrides the vendor's CLAUDE_TIMEOUT (600)
+KEEP_IMAGES = os.environ.get("SSE_KEEP_IMAGES") == "1"  # debug: leave benchmark images in place
+USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 NO_IMAGE = {"python__cpython-104029@f78e70e"}
 EXT = {"python": ".py", "javascript": ".test.js", "typescript": ".test.ts", "go": "_test.go"}
 CLAUDE_BIN, PROMPT_PATH, KEY_PATH = "/home/agent/.local/bin/claude", "/home/agent/prompt.txt", "/home/agent/.anthropic_env"
@@ -146,18 +177,27 @@ def spent():
 
 
 def check_budget(reserve):
+    if CAP_USD is None or math.isinf(CAP_USD):  # free hosting / explicitly disabled cap: no accounting needed
+        return
     s = spent()
     if s + reserve > CAP_USD:
         raise BudgetExceeded(f"spent ${s:.2f} + reserve ${reserve:.2f} > cap ${CAP_USD:.2f}")
 
 
-def record(kind, instance, cost, unknown=MAX_REPAIR_USD):
+def record(kind, instance, cost, unknown=MAX_REPAIR_USD, tokens=None, duration_s=None, model=None):
     if cost is None or not isinstance(cost, (int, float)) or not math.isfinite(cost) or cost < 0:
         cost = unknown  # never record unknown spend as zero
+    obj = {"kind": kind, "instance": instance, "cost": cost, "ts": time.time()}
+    if tokens is not None:
+        obj["tokens"] = tokens
+    if duration_s is not None:
+        obj["duration_s"] = duration_s
+    if model is not None:
+        obj["model"] = model
     with _lock:
         LEDGER.parent.mkdir(parents=True, exist_ok=True)
         with LEDGER.open("a") as f:
-            f.write(json.dumps({"kind": kind, "instance": instance, "cost": cost, "ts": time.time()}) + "\n")
+            f.write(json.dumps(obj) + "\n")
 
 
 # ---------- cache ----------
@@ -166,14 +206,15 @@ def key(*parts):
 
 
 def cached(kind, k, fn):
-    """fn() -> result dict. Hit: cost 0, no budget check. An errored result is stored iff it cost money (or was charged
-    at the unknown-cost max), so re-evaluating never re-bills; unbilled infra errors are not stored and may retry."""
+    """fn() -> result dict. Hit: cost 0, no budget check. A result is stored when it is clean, was really attempted
+    (attempted=True: Claude actually started, so a re-run would re-bill even under free pricing), or cost money.
+    An unbilled infra error (docker pull/cp before the agent starts) is not stored and may retry."""
     p = CACHE / kind / f"{k}.json"
     if p.exists():
         old = json.loads(p.read_text())
         return {**old, "cached": True, "orig_cost_usd": old.get("cost_usd"), "cost_usd": 0.0}
     res = fn()
-    if not res.get("error") or res.get("cost_usd", 0) > 0:
+    if not res.get("error") or res.get("attempted") or res.get("cost_usd", 0) > 0:
         write_json(p, res)
     return res
 
@@ -227,6 +268,9 @@ def remove_image(iid):
 
 def cleanup_images():
     """Remove every image ensure_image handed out in this run. Call between rounds/at the end, never mid-round."""
+    if KEEP_IMAGES:
+        print("SSE_KEEP_IMAGES=1: keeping benchmark images")
+        return 0
     with _img_lock:
         ids = sorted(_used_images)
         _used_images.clear()
@@ -251,24 +295,29 @@ def ensure_image(iid):
 # CLI error forms only; prose that merely mentions "authentication" or "billing" must not stop a run
 FATAL_RE = re.compile(r"invalid x-api-key|invalid api key|authentication_error|api error: ?40[13]|credit balance is too low|"
                       r"invalid proxy server token|incorrect api key|invalid_api_key|"
-                      r"rate_limit_error|usage limit reached|please run /login", re.I)
+                      r"please run /login", re.I)
+# Free hosted quota is transient: repair_pr retries with backoff instead of stopping the whole multi-hour run.
+RATE_LIMIT_RE = re.compile(r"rate_limit_error|usage limit reached|too many requests|api error: ?429", re.I)
+RATE_LIMIT_SLEEPS = (60, 120)  # seconds before the 1st and 2nd rate-limit retry
 
 
 def parse_claude(stdout):
-    """Tolerant parse of `claude -p --output-format json`. Returns text, cost, ok, is_error, subtype.
-    Cost is recomputed from the token usage at reviewer.PRICE_*: Claude Code's own total_cost_usd uses Anthropic prices and does not
-    know this model. ok False (no usage) -> cost = MAX_REPAIR_USD, the unknown-cost charge."""
-    out = {"text": "", "cost": MAX_REPAIR_USD, "ok": False, "is_error": False, "subtype": ""}
+    """Tolerant parse of `claude -p --output-format json`. Returns text, cost, ok, is_error, subtype and a `usage` dict
+    (input/output/cache_creation/cache_read tokens). Cost is recomputed from the token usage at reviewer.PRICE_*: Claude Code's own
+    total_cost_usd uses Anthropic prices and does not know this model. ok False (no usage) -> cost = MAX_REPAIR_USD."""
+    out = {"text": "", "cost": MAX_REPAIR_USD, "ok": False, "is_error": False, "subtype": "",
+           "usage": {k: 0 for k in USAGE_KEYS}}
     try:
         o = json.loads(stdout)
         if isinstance(o, list):
             o = [x for x in o if isinstance(x, dict) and x.get("type") == "result"][-1]
         out.update(text=str(o.get("result", "")), is_error=bool(o.get("is_error")), subtype=str(o.get("subtype") or ""))
-        u = o["usage"]
-        tin = sum(int(u.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
-        cost = (tin * reviewer.PRICE_IN + int(u.get("output_tokens") or 0) * reviewer.PRICE_OUT) / 1e6
+        u = o["usage"]  # missing usage = unparseable for costing purposes (ok stays False)
+        usage = {k: int(u.get(k) or 0) for k in USAGE_KEYS}
+        tin = usage["input_tokens"] + usage["cache_creation_input_tokens"] + usage["cache_read_input_tokens"]
+        cost = (tin * reviewer.PRICE_IN + usage["output_tokens"] * reviewer.PRICE_OUT) / 1e6
         assert math.isfinite(cost) and cost >= 0
-        out.update(cost=float(cost), ok=True)
+        out.update(cost=float(cost), ok=True, usage=usage)
     except Exception:
         pass
     return out
@@ -311,10 +360,13 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
     """One container, one Claude Code invocation, score every Stage 4 test of the PR."""
     t0 = time.time()
     iid, tests = inst["instance_id"], stage4_tests(inst)
+    invoked = False  # flips only right before the Claude run: earlier failures are free and safe to retry
     res = {"instance_id": iid, "repo": inst["repo"], "per_comment": [{"comment_index": ci, "passed": None} for ci, _, _ in tests],
-           "agent_diff": "", "cost_usd": 0.0, "error": None, "duration_s": 0.0, "claude_version": None}
+           "agent_diff": "", "cost_usd": 0.0, "error": None, "duration_s": 0.0, "claude_version": None,
+           "attempted": False, "rate_limited": False, "usage": {k: 0 for k in USAGE_KEYS}}
 
     def done(error=None, passed=None):
+        res["attempted"] = invoked
         res["error"] = scrub(error) if error else None
         for pc in res["per_comment"]:
             pc["passed"] = passed
@@ -326,7 +378,6 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
     if iid in NO_IMAGE:
         return done(error="no docker image for this instance")
     session = DockerContainerSession(get_docker_image_name(iid), name=f"sse-{uuid.uuid4().hex[:12]}")
-    invoked = False
 
     def mark():
         nonlocal invoked
@@ -343,16 +394,24 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         if reset.returncode != 0:
             return done(error=f"git checkout failed: {reset.stderr[:300]}")
         if lang == "python":
-            session.run_command("pip install -e . --no-deps --quiet", timeout=120)
+            pip0 = session.run_command("pip install -e . --no-deps --quiet", timeout=120)
+            if getattr(pip0, "timed_out", False):
+                return done(error="pip install timed out before the agent started")
         prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])  # vendor prompt, unchanged
         r = invoke_claude(session, prompt, model, mark)  # sets `invoked` right before the Claude run; earlier failures cost $0
         write_json(RAW / f"{iid.replace('/', '__')}_{uuid.uuid4().hex[:8]}.json",
                    {"returncode": r.returncode, "timed_out": r.timed_out, "stdout": r.stdout, "stderr": r.stderr})
         p = parse_claude(r.stdout)
+        res["usage"] = p["usage"]
+        res["attempted"] = invoked
+        res["rate_limited"] = bool(RATE_LIMIT_RE.search(" ".join([r.stderr or "", p["text"] if p["is_error"] else ""])))
         failed = p["is_error"] or r.returncode != 0
         hay = " ".join([p["text"] if p["is_error"] else "", r.stderr[:500], "" if p["ok"] else r.stdout[:500]])
         if failed and not r.timed_out and p["subtype"] != "error_max_budget_usd" and FATAL_RE.search(hay):
-            record("repair", iid, p["cost"])  # parsed cost (maybe $0); MAX only if the CLI ran and output was unparseable
+            res["attempted"] = invoked
+            res["duration_s"] = round(time.time() - t0, 1)
+            # parsed cost (maybe $0); MAX only if the CLI ran and output was unparseable
+            record("repair", iid, p["cost"], tokens=p["usage"], duration_s=res["duration_s"], model=model)
             raise FatalRunError(f"Claude Code failed for {iid}, stopping the run: "
                                 f"{scrub(' '.join([p['text'], p['subtype'], r.stderr[:200]]))[:300]}")
         # ponytail: a timeout is charged at the max and left as an error, so summaries count it failed (errors-as-failed) and the gate
@@ -360,54 +419,99 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         res["cost_usd"] = MAX_REPAIR_USD if r.timed_out else p["cost"]  # unknown cost is charged at the max
         if r.timed_out or not p["ok"]:
             return done(error="claude timed out" if r.timed_out else f"claude output unparseable (rc={r.returncode})")
-        diff = session.run_command("git diff", timeout=30).stdout
+        diff_res = session.run_command("git diff", timeout=30)
+        if getattr(diff_res, "timed_out", False):
+            return done(error="git diff timed out after the agent ran")
+        diff = diff_res.stdout
         res["agent_diff"] = scrub(diff)
-        dirty = diff.strip() or session.run_command("git status --porcelain", timeout=15).stdout.strip()
+        status_res = session.run_command("git status --porcelain", timeout=15)
+        if getattr(status_res, "timed_out", False):
+            return done(error="git status timed out after the agent ran")
+        dirty = diff.strip() or status_res.stdout.strip()
         if failed and p["subtype"] != "error_max_budget_usd" and not dirty:
             # the agent did not really run: infra error, not a failed test
             return done(error=f"claude failed (rc={r.returncode}, subtype={p['subtype']}): {p['text'][:200]}")
         if not dirty:
             return done(passed=False)  # no changes = failed tests, not an infra error
         if lang == "python":
-            session.run_command("pip install -e . --no-deps --quiet", timeout=120)
+            pip1 = session.run_command("pip install -e . --no-deps --quiet", timeout=120)
+            if getattr(pip1, "timed_out", False):
+                return done(error="pip install timed out before tests")
+        timed_out_test = False
         for pc, (ci, i, e) in zip(res["per_comment"], tests):
-            pc["passed"], _ = verify_with_test(session, e["test_code"], f"test_review_comment_{i}{EXT.get(lang, '.py')}", lang)
+            ok, out = verify_with_test(session, e["test_code"], f"test_review_comment_{i}{EXT.get(lang, '.py')}", lang)
+            if not ok and "Command timed out" in (out or ""):
+                timed_out_test = True
+                pc["passed"] = None  # infrastructure timeout: excluded, never a failed review
+            else:
+                pc["passed"] = ok
+        res["attempted"] = invoked
         res["duration_s"] = round(time.time() - t0, 1)
+        if timed_out_test:
+            res["error"] = "test run timed out"
         return res
     except StopRun:
+        res["attempted"] = invoked
         raise
     except Exception as e:
-        if invoked and not res["cost_usd"]:
-            res["cost_usd"] = MAX_REPAIR_USD
+        res["attempted"] = invoked
+        if invoked and not res["cost_usd"] and MAX_REPAIR_USD > 0:
+            res["cost_usd"] = MAX_REPAIR_USD  # paid model: unknown cost after the agent started
         return done(error=f"{type(e).__name__}: {e}"[:500])
     finally:
         session.remove(force=True)
 
 
 # ---------- budgeted, cached entry points ----------
-def run_review(inst, skills, model=reviewer.MODEL):
+def run_review(inst, skills, model=reviewer.MODEL, fresh=False, salt=None):
+    """fresh=True or salt=<string> forces a new draw under a distinct cache key. A caller-supplied salt is deterministic:
+    the same salt plus the same prompt reuses the stored draw, so a long run can resume without re-rolling results."""
     msgs = reviewer.build_messages(inst, skills)
-    k = key("review", inst["instance_id"], json.dumps(msgs), model, reviewer.TEMPERATURE, reviewer.MAX_TOKENS, reviewer.RETRY_MAX_TOKENS)
+    parts = [inst["instance_id"], json.dumps(msgs), model, reviewer.TEMPERATURE, reviewer.MAX_TOKENS, reviewer.RETRY_MAX_TOKENS]
+    if fresh or salt:
+        parts.append(str(salt) if salt else uuid.uuid4().hex)
+    k = key("review", *parts)
+    t0 = time.time()
     def go():
         check_budget(REVIEW_RESERVE_USD)
-        return reviewer.review(inst, skills, model, on_cost=lambda c: record("review", inst["instance_id"], c))
+        return reviewer.review(inst, skills, model,
+                               on_cost=lambda c, u=None: record("review", inst["instance_id"], c, tokens=u,
+                                                                duration_s=round(time.time() - t0, 1), model=model))
     return cached("review", k, go)
 
 
-def repair_pr(inst, findings, model=REPAIR_MODEL):
+def repair_pr(inst, findings, model=REPAIR_MODEL, fresh=False, salt=None):
     if not findings:  # nothing to apply: no container, no cost
         return run_repair(inst, findings, model)
     prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])
+
     def go():
-        check_budget(MAX_REPAIR_USD)
-        r = run_repair(inst, findings, model)
-        record("repair", inst["instance_id"], r["cost_usd"])
-        if r["error"] and not r["cost_usd"]:  # unbilled infra error (e.g. docker pull/cp): retry once
+        rate_retries, infra_retried = 0, False
+        while True:
             check_budget(MAX_REPAIR_USD)
             r = run_repair(inst, findings, model)
-            record("repair", inst["instance_id"], r["cost_usd"])
-        return r
-    return cached("repair", key("repair", inst["instance_id"], HARNESS_VERSION, prompt, model, MAX_REPAIR_USD), go)
+            # each attempt is recorded exactly once, including rate-limited attempts (no double charge)
+            record("repair", inst["instance_id"], r["cost_usd"], tokens=r.get("usage"),
+                   duration_s=r.get("duration_s"), model=model)
+            if r.get("error") and (r.get("rate_limited") or RATE_LIMIT_RE.search(str(r["error"]))):
+                if rate_retries >= len(RATE_LIMIT_SLEEPS):
+                    raise FatalRunError(f"rate limited on {inst['instance_id']} after {rate_retries} retries: "
+                                        f"{scrub(str(r['error']))[:300]}")
+                delay = RATE_LIMIT_SLEEPS[rate_retries]
+                rate_retries += 1
+                print(f"rate limited on {inst['instance_id']}; retry {rate_retries}/{len(RATE_LIMIT_SLEEPS)} in {delay}s")
+                time.sleep(delay)
+                continue
+            if (r.get("error") and not r.get("attempted") and not r.get("cost_usd") and not infra_retried
+                    and "no docker image" not in str(r.get("error"))):
+                infra_retried = True  # unbilled infra error before the agent started (docker pull/cp): retry once
+                continue
+            return r
+
+    parts = [inst["instance_id"], HARNESS_VERSION, prompt, model, MAX_REPAIR_USD]
+    if fresh or salt:
+        parts.append(str(salt) if salt else uuid.uuid4().hex)
+    return cached("repair", key("repair", *parts), go)
 
 
 def pr_passed(rep):

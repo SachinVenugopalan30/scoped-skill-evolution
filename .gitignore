@@ -1,5 +1,16 @@
 .env
 .env.*
 runs/
+runs/logs/
 .venv/
 __pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Local tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
