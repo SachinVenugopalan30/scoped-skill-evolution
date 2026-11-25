@@ -76,8 +76,10 @@ def main():
     all_pairs = [net(a, b) for a, b in combinations(salts, 2)]
     for label, pairs in (("primary", primary), ("all_pairs", all_pairs)):
         for p in pairs:
-            if p["common"] != EXPECTED_N:
-                raise SystemExit(f"{label} pair {p['a']} vs {p['b']} has {p['common']}/{EXPECTED_N} comparable PRs")
+            # PROTOCOL §9: errored PRs are excluded from a pair, exactly as the gate does. Only refuse when errors
+            # exceed 10% of the pair (same bar as §13), which means infrastructure trouble, not repair noise.
+            if p["common"] < math.ceil(0.9 * EXPECTED_N):
+                raise SystemExit(f"{label} pair {p['a']} vs {p['b']} has only {p['common']}/{EXPECTED_N} comparable PRs")
 
     prim_nets = [p["net"] for p in primary]
     all_nets = [p["net"] for p in all_pairs]

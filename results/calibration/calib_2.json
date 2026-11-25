@@ -1,0 +1,2099 @@
+{
+ "condition": "static",
+ "partition": "selection",
+ "seed": 0,
+ "salt": "calib-2",
+ "n_requested": 34,
+ "n_done": 34,
+ "code_sha": "5820566a391f547d40f616c0e3ade77a047f7df3",
+ "harness_version": "5",
+ "model": "openai/qwen36-27b",
+ "excluded": {
+  "no_image": {
+   "n": 1,
+   "ids": [
+    "python__cpython-104029@f78e70e"
+   ]
+  },
+  "oversize": {
+   "n": 2,
+   "ids": [
+    "All-Hands-AI__OpenHands-8343@9d4e2af",
+    "python-poetry__poetry-4985@b350568"
+   ]
+  }
+ },
+ "summary": {
+  "n_prs": 34,
+  "n_errors": 1,
+  "errored_prs": [
+   "python-telegram-bot__python-telegram-bot-4168@96ca73d"
+  ],
+  "n_comments": 42,
+  "passed": 14,
+  "pass_rate_errors_as_failed": 0.3333333333333333,
+  "pass_rate_excl_errors": 0.34146341463414637,
+  "pass_rate_comments_excl_errors": 0.34146341463414637,
+  "tokens": 13252410,
+  "prompt_tokens": 13135241,
+  "completion_tokens": 117169,
+  "duration_s": 8202.0
+ },
+ "tokens": 13252410,
+ "duration_s": 8202.0,
+ "prs": [
+  {
+   "instance_id": "matplotlib__matplotlib-30199@b5dfb32",
+   "repo": "matplotlib/matplotlib",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "lib/matplotlib/pyplot.py",
+     "issue_header": "Incorrect return type for setter overload",
+     "issue_content": "The `xlim` overload that accepts arguments (setter) declares a return type of `tuple[float, float]`. However, the implementation at line 2133 returns `ret`, which is the result of `ax.set_xlim(...)`. `Axes.set_xlim` returns `None`. The return type annotation for the setter overload should be `None` to match the implementation and standard setter behavior.",
+     "start_line": 2108,
+     "end_line": 2116
+    },
+    {
+     "file": "lib/matplotlib/pyplot.py",
+     "issue_header": "Incorrect return type for setter overload",
+     "issue_content": "The `ylim` overload that accepts arguments (setter) declares a return type of `tuple[float, float]`. However, the implementation at line 2172 returns `ret`, which is the result of `ax.set_ylim(...)`. `Axes.set_ylim` returns `None`. The return type annotation for the setter overload should be `None` to match the implementation and standard setter behavior.",
+     "start_line": 2162,
+     "end_line": 2170
+    },
+    {
+     "file": "lib/matplotlib/pyplot.py",
+     "issue_header": "Missing 'autolim' parameter in xlim overload",
+     "issue_content": "The `xlim` function implementation (and `Axes.set_xlim`) typically supports an `autolim` parameter (or similar auto-limiting flags depending on version). The generated overload includes `auto` but misses `autolim` if it is present in the underlying `Axes.set_xlim` signature. Review the `Axes.set_xlim` signature to ensure all keyword-only arguments are included in the overload. If `auto` is the correct parameter name, ensure it matches the implementation exactly.",
+     "start_line": 2116,
+     "end_line": 2116
+    },
+    {
+     "file": "lib/matplotlib/pyplot.py",
+     "issue_header": "Missing 'autolim' parameter in ylim overload",
+     "issue_content": "The `ylim` function implementation (and `Axes.set_ylim`) typically supports an `autolim` parameter. The generated overload includes `auto` but misses `autolim` if it is present in the underlying `Axes.set_ylim` signature. Review the `Axes.set_ylim` signature to ensure all keyword-only arguments are included in the overload.",
+     "start_line": 2170,
+     "end_line": 2170
+    },
+    {
+     "file": "lib/matplotlib/pyplot.py",
+     "issue_header": "Overload does not cover all argument combinations",
+     "issue_content": "The current overloads for `xlim` and `ylim` only cover the no-argument case (getter) and the full-argument case (setter). They do not explicitly cover intermediate cases like `xlim(left)` or `xlim(left, right)` which are valid calls. While Python's `*args` handles this at runtime, type checkers may struggle to infer the correct return type or validate arguments for these partial calls. Consider adding overloads for common partial argument patterns or using a more flexible typing approach if supported.",
+     "start_line": 2116,
+     "end_line": 2116
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 361525,
+    "completion_tokens": 3771,
+    "total_tokens": 365296
+   },
+   "duration_s": 195.5
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-9802@5c7da54",
+   "repo": "scikit-learn/scikit-learn",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sklearn/linear_model/stochastic_gradient.py",
+     "issue_header": "Public parameter added to __init__",
+     "issue_content": "The parameter `set_future_warning` is added to the public `__init__` signature. This is an internal implementation detail used to suppress warnings during `set_params`. It should be prefixed with an underscore (e.g., `_set_future_warning`) or handled differently to avoid exposing internal state to users and breaking API stability.",
+     "line": 53
+    },
+    {
+     "file": "sklearn/linear_model/stochastic_gradient.py",
+     "issue_header": "set_params does not handle set_future_warning correctly",
+     "issue_content": "The `set_params` method calls `super().set_params(*args, **kwargs)` which will set `self.set_future_warning` if passed in kwargs. However, it then calls `_validate_params(set_future_warning=False)`. If a user explicitly calls `set_params(set_future_warning=True)`, the flag is set on the instance, but the validation logic ignores it because the argument passed to `_validate_params` is hardcoded to `False`. This makes the instance attribute `self.set_future_warning` effectively unused in `set_params` context, leading to confusing behavior.",
+     "line": 83
+    },
+    {
+     "file": "sklearn/linear_model/stochastic_gradient.py",
+     "issue_header": "Inconsistent warning suppression logic",
+     "issue_content": "In `__init__`, `_validate_params` is called with `set_future_warning=False` to suppress the warning during initialization. However, the instance attribute `self.set_future_warning` is set to `True` by default. This means the instance attribute is not used in `__init__` either. The logic relies entirely on the argument passed to `_validate_params`, making the instance attribute `self.set_future_warning` redundant and misleading.",
+     "line": 124
+    },
+    {
+     "file": "sklearn/linear_model/stochastic_gradient.py",
+     "issue_header": "Missing default value for set_future_warning in _validate_params",
+     "issue_content": "The method `_validate_params` signature is changed to include `set_future_warning=True` (implied by usage in `__init__` and `set_params`), but the diff shows `def _validate_params(self, set_max_iter=True):` in the original and the new calls pass `set_future_warning=False`. The diff snippet for the method definition line is cut off or not fully shown, but if the signature isn't updated to accept `set_future_warning`, this will raise a TypeError. Assuming the signature is updated, the default value should be consistent with the intended behavior.",
+     "line": 121
+    },
+    {
+     "file": "sklearn/linear_model/stochastic_gradient.py",
+     "issue_header": "API compatibility with subclasses",
+     "issue_content": "Adding a new parameter to `BaseSGD.__init__` may break subclasses that do not pass `**kwargs` or explicitly define their own `__init__` signatures. Since `BaseSGD` is an abstract base class, changes to its signature should be carefully considered to ensure backward compatibility with any existing subclasses in the codebase or user code.",
+     "line": 53
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 423768,
+    "completion_tokens": 4223,
+    "total_tokens": 427991
+   },
+   "duration_s": 363.4
+  },
+  {
+   "instance_id": "marimo-team__marimo-4080@8a73f89",
+   "repo": "marimo-team/marimo",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "marimo/_server/api/endpoints/ai.py",
+     "issue_header": "Logic error: Dependency check inside ImportError handler",
+     "issue_content": "The `DependencyManager.google_ai.require(...)` call is placed inside the `except ImportError` block. This means the dependency check (and subsequent error raising) only happens if the import fails. If the import succeeds, the check is skipped. The check should be moved before the `try` block to ensure the dependency is verified regardless of the import outcome, or the logic should be restructured to check first.",
+     "start_line": 282,
+     "end_line": 287
+    },
+    {
+     "file": "frontend/src/components/app-config/optional-features.tsx",
+     "issue_header": "Incorrect table column order vs header",
+     "issue_content": "The table headers are defined as 'Dependency', 'Feature', 'Status'. However, the rows render `dep.description` (Feature) in the first cell and `packageSpec` (Dependency) in the second cell. The columns are swapped relative to the headers. Either swap the headers or swap the content in the `TableRow`.",
+     "start_line": 136,
+     "end_line": 138
+    },
+    {
+     "file": "frontend/src/components/app-config/optional-features.tsx",
+     "issue_header": "Misleading column header 'Dependency'",
+     "issue_content": "The first column header is 'Dependency' but it displays `dep.description` (e.g., 'SQL cells'). The second column displays the actual package names (e.g., 'duckdb, sqlglot'). The headers should be swapped to 'Feature' and 'Dependencies' to match the content.",
+     "start_line": 136,
+     "end_line": 136
+    },
+    {
+     "file": "marimo/_dependencies/dependencies.py",
+     "issue_header": "Static method accessing instance attributes",
+     "issue_content": "The method `require_many` is defined as `@staticmethod` but it is called on `DependencyManager` instances (e.g., `DependencyManager.require_many`). While this works in Python, it is semantically incorrect and confusing. It should be a `@classmethod` or an instance method if it relies on the class context, or the calls should be updated to reflect it's a static utility. Given it takes `Dependency` objects, it's likely intended to be a static utility, but the naming `DependencyManager.require_many` implies it's part of the manager's stateful logic. Consider renaming or making it a class method if it needs to access class-level registries, though currently it doesn't.",
+     "start_line": 219,
+     "end_line": 226
+    },
+    {
+     "file": "frontend/src/components/editor/renderers/CellArray.tsx",
+     "issue_header": "Removed SQL capability check may cause runtime errors",
+     "issue_content": "The PR removes the check for `sqlCapabilities` before allowing the user to add an SQL cell. If the user adds an SQL cell without the required dependencies (duckdb/sqlglot), the cell will likely fail to execute or render correctly. The previous behavior disabled the button. The new behavior relies on runtime error handling. Ensure that the runtime error handling (via `ManyModulesNotFoundError`) provides a clear path to install dependencies, otherwise users will be stuck with broken cells.",
+     "start_line": 349,
+     "end_line": 363
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 156499,
+    "completion_tokens": 2664,
+    "total_tokens": 159163
+   },
+   "duration_s": 137.5
+  },
+  {
+   "instance_id": "certbot__certbot-9076@01f570d",
+   "repo": "certbot/certbot",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "tools/finish_release.py",
+     "issue_header": "Command injection vulnerability via shell splitting",
+     "issue_content": "The code uses `subprocess.run(command.split(), check=True)` where `command` is a string constructed from user input (`css`). `str.split()` does not correctly handle arguments with spaces or special characters, and constructing commands this way is unsafe. Use a list of arguments directly: `subprocess.run([\"ssh\", f\"{username}@{host}\", \"python3\", \"sign.py\", \"~/.ssh/githubpat.txt\"], check=True)`.",
+     "line": 103
+    },
+    {
+     "file": "tools/finish_release.py",
+     "issue_header": "Hardcoded sensitive file path in remote command",
+     "issue_content": "The command passed to the remote server includes `\"~/.ssh/githubpat.txt\"`. This assumes the code signing server has the GitHub PAT stored in this specific location and format. This is brittle and potentially insecure if the file permissions are not strictly controlled on the remote host. Consider passing the token via environment variable or stdin if possible, or at least document this requirement clearly.",
+     "line": 103
+    },
+    {
+     "file": "tools/finish_release.py",
+     "issue_header": "Undefined variable 'version'",
+     "issue_content": "The variable `version` is used in the call to `promote_snaps(version)` but it is never defined in the `main` function scope. In the previous implementation, `version` was returned by `download_azure_artifacts`. This will raise a `NameError` at runtime.",
+     "line": 175
+    },
+    {
+     "file": "tools/finish_release.py",
+     "issue_header": "Logic error: Snaps promotion without version",
+     "issue_content": "The `promote_snaps` function likely requires a version string to identify which snaps to promote. Since `version` is undefined and the logic to determine the version (previously in `download_azure_artifacts`) has been removed or moved, the snaps promotion logic is broken. The version needs to be determined or passed in.",
+     "line": 175
+    },
+    {
+     "file": "certbot/setup.py",
+     "issue_header": "Removal of dependencies without verification",
+     "issue_content": "The dependencies `azure-devops` and `PyGithub` are removed from `dev_extras`. While the script `tools/finish_release.py` no longer imports them, other scripts or tests in the repository might still depend on them. Ensure no other parts of the codebase use these libraries before removing them from the requirements.",
+     "line": 68
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 285581,
+    "completion_tokens": 2822,
+    "total_tokens": 288403
+   },
+   "duration_s": 147.5
+  },
+  {
+   "instance_id": "mlflow__mlflow-1658@3f53b0b",
+   "repo": "mlflow/mlflow",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "mlflow/store/local_artifact_repo.py",
+     "issue_header": "Incorrect artifact listing logic",
+     "issue_content": "The change `artifact_files = list_all(list_dir, full_path=True) + [list_dir]` appends the directory path itself to the list of files. This is likely incorrect for `list_artifacts`, which should return the contents of the directory, not the directory itself. This can cause downstream errors when iterating over artifacts if the code expects only files or subdirectories, not the parent directory path. The original logic using just `list_all` was likely correct for listing contents.",
+     "start_line": 75,
+     "end_line": 75
+    },
+    {
+     "file": "mlflow/pyfunc/__init__.py",
+     "issue_header": "Potential resource leak or cleanup issue with TempDir",
+     "issue_content": "The `TempDir` context manager is used to download the model, but the `archive_path` returned by `SparkModelCache.add_local_model` might reference files within that temporary directory. If `SparkModelCache` does not copy the files out of the temp dir or manage their lifecycle independently, the files might be deleted when the `with` block exits, causing the UDF to fail later when trying to load the model. Ensure that `SparkModelCache.add_local_model` handles the persistence of the model files correctly outside the scope of `local_tmpdir`.",
+     "start_line": 417,
+     "end_line": 419
+    },
+    {
+     "file": "mlflow/pyfunc/__init__.py",
+     "issue_header": "Inconsistent behavior with existing SparkModelCache",
+     "issue_content": "The original code downloaded the model to a default location (likely managed by `_download_artifact_from_uri`'s default behavior) and then added it to the cache. The new code forces the download into a `TempDir`. If `SparkModelCache.add_local_model` expects the input path to be persistent or performs specific operations based on the path structure, this change might break existing functionality or caching mechanisms. Verify that `SparkModelCache` is compatible with temporary paths that are about to be cleaned up.",
+     "start_line": 417,
+     "end_line": 419
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 121624,
+    "completion_tokens": 1877,
+    "total_tokens": 123501
+   },
+   "duration_s": 145.9
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-12822@c451532",
+   "repo": "scikit-learn/scikit-learn",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sklearn/feature_extraction/text.py",
+     "issue_header": "Incorrect placement of 'See Also' content in Parameters section",
+     "issue_content": "The documentation for `CountVectorizer` and `TfidfTransformer` has been inserted directly into the `Parameters` section (after `sublinear_tf`). In NumPy docstring format, cross-references to related classes belong in a dedicated `See Also` section, not as parameters. This breaks the structure of the docstring and will likely cause rendering errors or confusion for users reading the API docs. The content should be moved to a `See Also` section.",
+     "start_line": 1443,
+     "end_line": 1463
+    },
+    {
+     "file": "sklearn/feature_extraction/text.py",
+     "issue_header": "Misleading type signature for CountVectorizer in docstring",
+     "issue_content": "The entry `CountVectorizer : sparse matrix, (n_samples, n_features)` implies that `CountVectorizer` is a parameter that returns a sparse matrix, or that it is a type hint for a parameter. `CountVectorizer` is a class. In a `See Also` section, the format should be `CountVectorizer` followed by a description, without a type signature like `: sparse matrix...` which is reserved for function arguments or return values.",
+     "start_line": 1443,
+     "end_line": 1446
+    },
+    {
+     "file": "sklearn/feature_extraction/text.py",
+     "issue_header": "Misleading type signature for TfidfTransformer in docstring",
+     "issue_content": "Similar to the previous issue, `TfidfTransformer : sparse matrix, (n_samples, n_features)` is incorrectly formatted. It looks like a parameter definition. It should be listed in `See Also` with a proper description, not a type signature. Additionally, the description provided is verbose and mixes implementation details with high-level concepts, which is better suited for the class's own docstring or a more concise summary in `See Also`.",
+     "start_line": 1447,
+     "end_line": 1463
+    },
+    {
+     "file": "sklearn/feature_extraction/text.py",
+     "issue_header": "Removal of 'See Also' section without proper replacement",
+     "issue_content": "The original `See Also` section containing `CountVectorizer` and `TfidfTransformer` was removed. While the intent was to move this information, the new placement in the `Parameters` section is incorrect. The `See Also` section should be preserved or recreated in the correct location (after `Examples` and before `Notes`) to maintain standard NumPy docstring structure and ensure proper cross-linking in generated documentation.",
+     "start_line": 1496,
+     "end_line": 1505
+    },
+    {
+     "file": "sklearn/feature_extraction/text.py",
+     "issue_header": "Inaccurate mathematical notation and explanation in docstring",
+     "issue_content": "The formula `idf(d, t) = log [ n / df(d, t) ] + 1` is presented as the standard formula, but the text notes it differs from textbook notation. More importantly, placing this detailed mathematical derivation in the `Parameters` section (or even `See Also`) is inappropriate. This level of detail belongs in the `Notes` section of `TfidfTransformer` or `TfidfVectorizer`, not as a brief description of a related class. The current placement is confusing and structurally wrong.",
+     "start_line": 1453,
+     "end_line": 1463
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 93163,
+    "completion_tokens": 2280,
+    "total_tokens": 95443
+   },
+   "duration_s": 343.5
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-29442@3a19575",
+   "repo": "scikit-learn/scikit-learn",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sklearn/linear_model/_coordinate_descent.py",
+     "issue_header": "Undefined variable `X_offset` when `Xy` is provided",
+     "issue_content": "The variable `X_offset` is used in the calculation of `Xyw` (line 153) but is only defined inside the `else` block of `if Xy is not None` (line 146). If `Xy` is passed by the caller, `X_offset` is never defined, leading to a `NameError`. The logic for handling `Xy` needs to either compute `X_offset` or handle the case where `Xy` is precomputed differently.",
+     "line": 153
+    },
+    {
+     "file": "sklearn/linear_model/_coordinate_descent.py",
+     "issue_header": "Incorrect formula for weighted Xy with sparse matrices",
+     "issue_content": "The line `Xyw = safe_sparse_dot(X.T, yw, dense_output=True) - np.sum(yw) * X_offset` attempts to adjust for the intercept. However, `X_offset` is the mean of X (or weighted mean), and the adjustment for the intercept in the normal equations involves `X_offset * sum(yw)`. The current subtraction `np.sum(yw) * X_offset` is dimensionally correct (vector) but logically suspect depending on how `_preprocess_data` centers X. More critically, if `X` is sparse, `X_offset` might not be available or correctly computed in the `Xy is not None` branch. The standard approach for weighted elastic net alpha grid usually requires the centered weighted covariance. The current implementation mixes uncentered dot products with offset subtractions in a way that likely produces incorrect `alpha_max`.",
+     "line": 153
+    },
+    {
+     "file": "sklearn/linear_model/_coordinate_descent.py",
+     "issue_header": "Inconsistent handling of `sample_weight` when `Xy` is provided",
+     "issue_content": "If `Xy` is provided, the code sets `Xyw = Xy` (line 144) and ignores `sample_weight` in the calculation of `Xyw`. However, `alpha_max` calculation later uses `n_samples` derived from `sample_weight` (line 160). This inconsistency means the numerator (`Xyw`) is unweighted while the denominator (`n_samples`) is weighted, leading to an incorrect `alpha_max`. The `Xy` input should likely be rejected if `sample_weight` is provided, or `Xy` should be assumed to be already weighted/centered appropriately, which is not documented or handled safely.",
+     "line": 146
+    },
+    {
+     "file": "sklearn/linear_model/tests/test_coordinate_descent.py",
+     "issue_header": "Test uses random weights which may lead to flaky assertions",
+     "issue_content": "The test `test_enet_cv_sample_weight_correctness` uses `sw[:n_samples] = rng.randint(0, 5, size=n_samples)`. If any weight is 0, `np.repeat` with `sw.astype(int)` will result in 0 repetitions for those samples, potentially leading to empty folds or degenerate cases in `LeaveOneGroupOut`. Additionally, using random weights makes the test non-deterministic unless `global_random_seed` is strictly controlled, and the assertion `assert_allclose` might fail due to numerical instability with small or zero weights. It is safer to use fixed, non-zero weights for correctness tests.",
+     "line": 1323
+    },
+    {
+     "file": "doc/whats_new/v1.6.rst",
+     "issue_header": "Formatting error in changelog entry",
+     "issue_content": "The line `:pr:`23045`by :user:`John Hopfensperger <s-banach>`and :pr:`29308`by :user:`Shruti Nath <snath-xoc>`.` is missing spaces after the PR numbers and before 'by'. It should be `:pr:`23045` by :user:`...` and `:pr:`29308` by :user:`...`.",
+     "line": 107
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 985137,
+    "completion_tokens": 5977,
+    "total_tokens": 991114
+   },
+   "duration_s": 630.2
+  },
+  {
+   "instance_id": "gradio-app__gradio-3275@067f582",
+   "repo": "gradio-app/gradio",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "guides/05_tabular-data-science-and-plots/creating-a-dashboard-from-supabase-data.md",
+     "issue_header": "Broken internal link",
+     "issue_content": "The link `[visualizing the data]()` is empty and will not navigate anywhere. It should point to the anchor of the section, e.g., `[visualizing the data](#visualizing-the-data-in-a-real-time-gradio-dashboard)`.",
+     "line": 15
+    },
+    {
+     "file": "guides/05_tabular-data-science-and-plots/creating-a-dashboard-from-supabase-data.md",
+     "issue_header": "Grammar error",
+     "issue_content": "The sentence '...skip sections and first two sections...' is grammatically incorrect. It should likely be 'skip the first two sections'.",
+     "line": 15
+    },
+    {
+     "file": "guides/05_tabular-data-science-and-plots/creating-a-dashboard-from-supabase-data.md",
+     "issue_header": "Typo in sentence structure",
+     "issue_content": "The sentence '...read data from Supabase plot it in **real-time**...' is missing a conjunction or punctuation. It should be '...read data from Supabase and plot it...' or '...read data from Supabase, plot it...'.",
+     "line": 5
+    },
+    {
+     "file": "guides/05_tabular-data-science-and-plots/creating-a-dashboard-from-supabase-data.md",
+     "issue_header": "Missing newline at end of file",
+     "issue_content": "The file does not end with a newline character, which is a standard convention for text files and may cause issues with some tools or diffs.",
+     "line": 122
+    },
+    {
+     "file": "CHANGELOG.md",
+     "issue_header": "Inconsistent changelog entry format",
+     "issue_content": "The changelog entry starts with 'Adds' (verb) while other entries in the same section start with 'Added' (past participle) or 'Gradio Status Page' (noun phrase). For consistency, it should likely be 'Added a Guide...' or follow the pattern of other entries.",
+     "line": 55
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 126933,
+    "completion_tokens": 1784,
+    "total_tokens": 128717
+   },
+   "duration_s": 140.0
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-15277@594e3a6",
+   "repo": "scikit-learn/scikit-learn",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "azure-pipelines.yml",
+     "issue_header": "Insecure sudo chown command",
+     "issue_content": "The command `sudo chown -R $USER $CONDA` is potentially insecure and unnecessary in Azure Pipelines. The `USER` variable might not be set as expected or could be manipulated. It is better to rely on the default permissions of the conda installation provided by the Microsoft-hosted image or use `conda config --set always_yes yes` if needed, but typically ownership changes are not required for the default conda setup in these images.",
+     "line": 14
+    },
+    {
+     "file": "azure-pipelines.yml",
+     "issue_header": "Deprecated conda activate syntax",
+     "issue_content": "The script uses `source activate flake8_env`. This is deprecated in newer versions of conda. It should be replaced with `conda activate flake8_env` or `source $CONDA/bin/activate flake8_env` to ensure compatibility and follow best practices.",
+     "line": 18
+    },
+    {
+     "file": "azure-pipelines.yml",
+     "issue_header": "Deprecated conda activate syntax",
+     "issue_content": "The script uses `source activate flake8_env`. This is deprecated in newer versions of conda. It should be replaced with `conda activate flake8_env` or `source $CONDA/bin/activate flake8_env` to ensure compatibility and follow best practices.",
+     "line": 23
+    },
+    {
+     "file": "azure-pipelines.yml",
+     "issue_header": "Missing dependsOn for Linux_Always_Runs job",
+     "issue_content": "The `Linux_Always_Runs` job is intended to run regardless of linting, but it is listed before the `linting` job definition in the YAML structure. While Azure Pipelines might handle this, it is clearer and safer to ensure the job order or explicitly state that it has no dependencies. More importantly, if `linting` fails, the other jobs depend on it, but `Linux_Always_Runs` does not. However, the current placement might cause parsing issues or unexpected behavior if the pipeline engine processes jobs sequentially in definition order for dependency resolution. It is better to place independent jobs clearly or ensure the dependency graph is explicit.",
+     "line": 30
+    },
+    {
+     "file": "build_tools/azure/posix.yml",
+     "issue_header": "Default value for dependsOn parameter",
+     "issue_content": "The parameter `dependsOn` is defined with a default value of `[]`. In Azure Pipelines, if a job has no dependencies, it should not have a `dependsOn` field or it should be omitted. Setting it to an empty list `[]` might be interpreted differently than omitting it. It is better to use a conditional expression in the template to only include `dependsOn` if the parameter is not empty, e.g., `${{ if parameters.dependsOn }}: dependsOn: ${{ parameters.dependsOn }}`.",
+     "line": 5
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 133577,
+    "completion_tokens": 2684,
+    "total_tokens": 136261
+   },
+   "duration_s": 367.1
+  },
+  {
+   "instance_id": "geldata__gel-5130@2e5341f",
+   "repo": "geldata/gel",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "edb/edgeql/compiler/context.py",
+     "issue_header": "Missing type annotation for new context attribute",
+     "issue_content": "The `disallow_dml` attribute is added to the `ContextLevel` class but lacks a type annotation in the class body, unlike other attributes (e.g., `active_computeds`). Add `disallow_dml: bool` to the class-level annotations for consistency and type checking.",
+     "start_line": 537,
+     "end_line": 540
+    },
+    {
+     "file": "edb/edgeql/compiler/stmt.py",
+     "issue_header": "Incorrect context switch mode for disabling DML",
+     "issue_content": "The code uses `ContextSwitchMode.NEW` to create a new context level for the `where` and `orderby` clauses. `NEW` typically implies a fresh context that might not inherit all necessary state or might reset flags incorrectly depending on implementation. More importantly, `disallow_dml` is a flag that should likely be set in the existing context or a specific subquery context. If `NEW` creates a completely isolated context, it might break other dependencies. However, the bigger issue is that `disallow_dml` is copied from `prevlevel` in the `else` branch of `__init__`. If `NEW` mode doesn't copy `disallow_dml` (it seems to initialize it to False in the `if not prevlevel` branch, but `NEW` usually has a `prevlevel`), we need to ensure the flag is correctly propagated. Looking at `__init__`, if `prevlevel` exists, it copies `disallow_dml`. So `sctx_no_dml` will have `disallow_dml = False` initially (copied from `sctx` which is False). Then it is set to True. This logic seems okay, but `ContextSwitchMode.NEW` is often used for subqueries. Is `where`/`orderby` a subquery? Usually, they are part of the same statement. Using `SUBQUERY` mode might be more appropriate if they are treated as such, or just modifying the current context if they aren't. However, the diff shows `sctx.new(...)` which creates a new level. The main risk is if `NEW` mode resets other critical state needed for `where`/`orderby` compilation. A safer approach might be to just set `sctx.disallow_dml = True` if the context allows mutation, or use a specific mode that preserves state. Given the complexity, simply setting the flag on the current context `sctx` might be sufficient if `where`/`orderby` don't need a new scope for other reasons. If they do, `SUBQUERY` is likely the intended mode for nested expressions. Using `NEW` might be too aggressive.",
+     "start_line": 136,
+     "end_line": 145
+    },
+    {
+     "file": "edb/edgeql/compiler/stmt.py",
+     "issue_header": "Duplicate error handling logic for DML restriction",
+     "issue_content": "The check `if ctx.disallow_dml: raise errors.QueryError(...)` is duplicated in `compile_InsertQuery`, `compile_UpdateQuery`, and `compile_DeleteQuery`. This violates DRY principles. Consider extracting this check into a helper function like `check_dml_allowed(ctx, expr)` or a context manager that raises the error if DML is attempted while `disallow_dml` is true.",
+     "start_line": 425,
+     "end_line": 435
+    },
+    {
+     "file": "edb/edgeql/compiler/stmt.py",
+     "issue_header": "Potential scope leak or incorrect context isolation",
+     "issue_content": "By creating a new context level with `sctx.new(...)`, the `where` and `orderby` clauses are compiled in a new scope. If these clauses reference variables or anchors defined in the outer `SelectQuery` context, they might not be visible if `ContextSwitchMode.NEW` does not properly inherit `anchors` or `modaliases`. The `__init__` method shows that `SUBQUERY` mode copies `anchors` and `modaliases`, but `NEW` mode's behavior isn't fully shown here. If `NEW` mode doesn't inherit these, the query will fail to compile for valid reasons unrelated to DML. Ensure that the chosen context mode correctly inherits necessary bindings.",
+     "start_line": 136,
+     "end_line": 145
+    },
+    {
+     "file": "tests/test_edgeql_select.py",
+     "issue_header": "Tests do not cover valid DML in WITH blocks",
+     "issue_content": "The hint suggests factoring out mutations into a `WITH` block. The tests only verify that DML in `WHERE`/`ORDER BY` fails. They should also include positive test cases where DML is used in a `WITH` block and then referenced in `WHERE`/`ORDER BY` to ensure the fix doesn't break valid use cases and that the hint is actionable.",
+     "start_line": 8005,
+     "end_line": 8060
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 618282,
+    "completion_tokens": 5094,
+    "total_tokens": 623376
+   },
+   "duration_s": 244.1
+  },
+  {
+   "instance_id": "networkx__networkx-4134@3b27fe2",
+   "repo": "networkx/networkx",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": ".circleci/config.yml",
+     "issue_header": "Hardcoded SSH key fingerprint",
+     "issue_content": "The SSH key fingerprint is hardcoded in the configuration. This is a security risk and makes the config less portable. It is better to use environment variables or CircleCI's context feature to manage sensitive credentials like SSH keys.",
+     "start_line": 63,
+     "end_line": 63
+    },
+    {
+     "file": ".circleci/config.yml",
+     "issue_header": "Insecure git push without token or proper auth check",
+     "issue_content": "The script pushes to the `gh-pages` branch using SSH keys. If the SSH key permissions are too broad or if the key is compromised, this allows arbitrary code execution on the docs site. Additionally, there is no check to ensure the push is only happening from the official repository, which could lead to accidental pushes from forks if not properly guarded by branch filters (though `only: master` helps, it's good practice to verify the repo name).",
+     "start_line": 65,
+     "end_line": 77
+    },
+    {
+     "file": ".circleci/config.yml",
+     "issue_header": "Cloning documentation repo without error handling",
+     "issue_content": "The `git clone` command does not check if the repository already exists or handle potential network errors. If the clone fails, the subsequent commands will fail with confusing errors. It's better to add error handling or use `git clone --depth 1` to speed up the process.",
+     "start_line": 66,
+     "end_line": 66
+    },
+    {
+     "file": ".circleci/config.yml",
+     "issue_header": "Global git config changes",
+     "issue_content": "Using `git config --global` can have unintended side effects if other git operations are performed in the same container or if the container is reused. It's better to use local git config options (`git config user.email ...`) within the cloned repository.",
+     "start_line": 70,
+     "end_line": 70
+    },
+    {
+     "file": ".circleci/config.yml",
+     "issue_header": "Commit message contains sensitive information",
+     "issue_content": "The commit message includes `$CIRCLE_SHA1`, which is the commit hash. While not strictly sensitive, it's good practice to avoid including any potentially sensitive information in commit messages. In this case, it's acceptable, but it's worth noting that the commit message should be clear and concise.",
+     "start_line": 73,
+     "end_line": 73
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 57210,
+    "completion_tokens": 1524,
+    "total_tokens": 58734
+   },
+   "duration_s": 119.4
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-26151@c6a1bf5",
+   "repo": "matplotlib/matplotlib",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "lib/matplotlib/_mathtext.py",
+     "issue_header": "IndexError on single-line substack",
+     "issue_content": "The code `hlist = [Hlist(k) for k in parts[0]]` assumes `parts` has at least one element. If `\\substack{}` is called with empty content or if the parser structure results in an empty list, this will raise an IndexError or produce incorrect results. Additionally, `parts` is a ParseResults object; accessing `parts[0]` directly might not yield the expected list of tokens if the grouping logic is slightly off. A safer approach is to iterate over `parts` directly or ensure `parts` is not empty.",
+     "line": 2663
+    },
+    {
+     "file": "lib/matplotlib/_mathtext.py",
+     "issue_header": "UnboundLocalError if hlist is empty",
+     "issue_content": "If `hlist` is empty (e.g., `\\substack{}`), `max(map(lambda c: c.width, hlist))` will raise a `ValueError: max() arg is an empty sequence`. The code should handle the case where no content is provided inside `\\substack`.",
+     "line": 2664
+    },
+    {
+     "file": "lib/matplotlib/_mathtext.py",
+     "issue_header": "Incorrect vertical spacing logic",
+     "issue_content": "The code inserts `Vbox(0, thickness * 2)` between lines. `Vbox` typically takes `(height, depth)` or similar arguments depending on the internal API, but here it seems to be used for spacing. More critically, `thickness` is retrieved from `get_current_underline_thickness()`, which is likely unrelated to the line spacing required for `\\substack`. Standard `\\substack` behavior usually relies on a fixed line height or `\\lineskip`, not underline thickness. This will likely produce visually incorrect spacing.",
+     "line": 2673
+    },
+    {
+     "file": "lib/matplotlib/_mathtext.py",
+     "issue_header": "Parser ambiguity with nested braces",
+     "issue_content": "The definition `nested_expr(opener=\"{\", closer=\"}\", content=...)` might conflict with other brace-based commands or fail to parse correctly if the content itself contains unbalanced braces or complex nested structures that `nested_expr` doesn't handle as expected in this context. `nested_expr` is generally for simple nested structures. For `\\substack`, a more specific parser rule might be needed to handle the `\\\\` line breaks correctly within the braces.",
+     "line": 1933
+    },
+    {
+     "file": "lib/matplotlib/_mathtext.py",
+     "issue_header": "Incorrect return type",
+     "issue_content": "The method returns `[Hlist([vlt])]`, a list containing an Hlist. Other similar methods like `boldsymbol` return `Hlist(hlist)`. Returning a list might cause issues in the parser's composition logic if it expects a single box object. It should likely return `Hlist([vlt])` directly.",
+     "line": 2676
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 1968470,
+    "completion_tokens": 6829,
+    "total_tokens": 1975299
+   },
+   "duration_s": 663.8
+  },
+  {
+   "instance_id": "networkx__networkx-5305@072b960",
+   "repo": "networkx/networkx",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "networkx/algorithms/distance_measures.py",
+     "issue_header": "Incorrect usage of `nx.shortest_path_length`",
+     "issue_content": "The function `nx.shortest_path_length` returns a single integer/float when a single source is provided, not a dictionary. The code assigns this to `dist` and later checks `len(dist)`, which will raise a TypeError. To get a dictionary of distances from a single source, use `nx.single_source_dijkstra_path_length` or pass `target=None` (if supported in this version) or iterate. Given the context of `_extrema_bounding` needing all distances from `current`, `nx.single_source_dijkstra_path_length(G, current, weight=weight)` is the correct replacement for `nx.single_source_shortest_path_length`.",
+     "line": 113
+    },
+    {
+     "file": "networkx/algorithms/distance_measures.py",
+     "issue_header": "Incorrect usage of `nx.shortest_path_length` in `eccentricity`",
+     "issue_content": "Similar to the issue in `_extrema_bounding`, `nx.shortest_path_length(G=G, source=n, weight=weight)` returns a scalar, not a dictionary. The code expects `length` to be a dictionary to compute `len(length)` and `max(length.values())`. It should use `nx.single_source_dijkstra_path_length(G, n, weight=weight)` to obtain the dictionary of distances.",
+     "line": 293
+    },
+    {
+     "file": "networkx/algorithms/distance_measures.py",
+     "issue_header": "Missing import or incorrect algorithm for weighted graphs",
+     "issue_content": "The diff replaces `nx.single_source_shortest_path_length` (BFS, unweighted) with `nx.shortest_path_length` (generic). For weighted graphs, Dijkstra's algorithm is required. `nx.shortest_path_length` with a `weight` argument might dispatch to Dijkstra, but its return value for a single source is a scalar, breaking the logic. The explicit use of `nx.single_source_dijkstra_path_length` is safer and clearer for this internal function to ensure a dictionary is returned.",
+     "line": 113
+    },
+    {
+     "file": "networkx/algorithms/tests/test_distance_measures.py",
+     "issue_header": "Floating point comparison without tolerance",
+     "issue_content": "The assertion `assert nx.eccentricity(self.G, 1) == 1.5` compares floating point results directly. Due to potential round-off errors in weighted shortest path calculations, this should use `pytest.approx` like the other tests in the class (e.g., `test_radius`).",
+     "line": 108
+    },
+    {
+     "file": "networkx/algorithms/tests/test_distance_measures.py",
+     "issue_header": "Floating point comparison without tolerance",
+     "issue_content": "The assertion `assert e[1] == 1.5` compares floating point results directly. This should use `pytest.approx` to avoid flaky tests due to floating point precision issues.",
+     "line": 110
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 593235,
+    "completion_tokens": 3939,
+    "total_tokens": 597174
+   },
+   "duration_s": 257.1
+  },
+  {
+   "instance_id": "python-telegram-bot__python-telegram-bot-3514@d5c0a5c",
+   "repo": "python-telegram-bot/python-telegram-bot",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "telegram/_utils/markup.py",
+     "issue_header": "IndexError on empty keyboard",
+     "issue_content": "The code accesses `keyboard[0][0]` without checking if `keyboard` or `keyboard[0]` is empty. If an empty list `[]` or a list of empty lists `[[]]` is passed, this will raise an `IndexError` instead of returning `False` or handling it gracefully. Add checks for `len(keyboard) == 0` or `len(keyboard[0]) == 0`.",
+     "start_line": 42,
+     "end_line": 43
+    },
+    {
+     "file": "telegram/_utils/markup.py",
+     "issue_header": "Incomplete dimension check",
+     "issue_content": "The check `isinstance(keyboard[0][0], Sequence)` only validates the first element of the first row. A keyboard like `[[\"a\"], [[\"b\"]]]` would pass this check because `keyboard[0][0]` is a string, but the second row contains a nested sequence. The logic should iterate through all rows and elements to ensure no element is a sequence (except strings/bytes), or the docstring/implementation needs to clarify that only the first element is checked (which is likely insufficient for validation).",
+     "start_line": 42,
+     "end_line": 43
+    },
+    {
+     "file": "telegram/_utils/markup.py",
+     "issue_header": "Redundant or conflicting logic",
+     "issue_content": "The existing loop `for row in keyboard:` already checks if each row is a Sequence. If the new check is intended to prevent 3D arrays, it should verify that elements within rows are not Sequences. The current implementation only checks `keyboard[0][0]`. If `keyboard[0]` is a string (allowed for ReplyKeyboardMarkup), `keyboard[0][0]` is a character (string), so it passes. But if `keyboard[0]` is a list of lists, it fails. However, if `keyboard` is `[[\"a\"], [1, 2]]`, the loop checks rows. The new check doesn't cover cases where deeper nesting exists in other rows or elements.",
+     "start_line": 42,
+     "end_line": 43
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 177202,
+    "completion_tokens": 2701,
+    "total_tokens": 179903
+   },
+   "duration_s": 128.0
+  },
+  {
+   "instance_id": "geldata__gel-6352@24b4f19",
+   "repo": "geldata/gel",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "edb/server/protocol/protocol.pyx",
+     "issue_header": "Hardcoded user 'edgedb' in HTTP auth check",
+     "issue_content": "The `_check_http_auth` method hardcodes `user = 'edgedb'`. This prevents users from authenticating as other roles via HTTP Basic Auth or JWT, and contradicts the `auth_basic` helper which extracts the username from the credentials. The user should be derived from the authentication method (e.g., from Basic Auth credentials or JWT claims) rather than hardcoded.",
+     "line": 728
+    },
+    {
+     "file": "edb/server/protocol/protocol.pyx",
+     "issue_header": "Incorrect HTTP status code for authentication failure",
+     "issue_content": "The method returns `http.HTTPStatus.BAD_REQUEST` (400) when authentication fails. According to HTTP standards, authentication failures should return `http.HTTPStatus.UNAUTHORIZED` (401). Returning 400 obscures the nature of the error and may confuse clients expecting standard auth responses.",
+     "line": 743
+    },
+    {
+     "file": "edb/server/protocol/protocol.pyx",
+     "issue_header": "Leaking internal exception details in response body",
+     "issue_content": "The code sets `response.body = str(ex).encode()`. This exposes internal error messages, stack traces, or implementation details to the client, which is a security risk. The response body should contain a generic error message, while the specific details should only be logged server-side.",
+     "line": 744
+    },
+    {
+     "file": "tests/test_server_proto.py",
+     "issue_header": "Debug print statement left in test code",
+     "issue_content": "The line `print(\"SERVER\", sd)` is left in the test method `test_server_adjacent_extension_propagation`. Debug output should be removed before merging to keep test logs clean.",
+     "line": 2300
+    },
+    {
+     "file": "tests/test_server_proto.py",
+     "issue_header": "Profanity in test assertion message",
+     "issue_content": "The assertion message contains profanity (`f\"fuck: {response} {_}\"`). Test messages should be professional and descriptive. Additionally, the variable `_` is likely undefined or a typo, which will cause a NameError or unexpected behavior.",
+     "line": 2303
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 926809,
+    "completion_tokens": 4924,
+    "total_tokens": 931733
+   },
+   "duration_s": 280.9
+  },
+  {
+   "instance_id": "optuna__optuna-972@1f4813a",
+   "repo": "optuna/optuna",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "optuna/pruners/hyperband.py",
+     "issue_header": "Missing backslash in math directive",
+     "issue_content": "The string `Defaults to :math`4` is missing a backslash before the opening brace. It should be `Defaults to :math:`4`` or `Defaults to :math:`4`` depending on the intended rendering, but typically `:math:`4`` requires the backslash if it's meant to be a LaTeX math block in Sphinx, or simply `4` if not. Given the context of other math blocks like `:math:`\\eta``, it is likely a typo for `:math:`4`` or just `4`. However, looking at `:math:`4` in the diff, it seems the author meant `:math:`4`` but missed the closing backtick or the math directive syntax is broken. Actually, `:math:`4`` is valid if 4 is the content. But `:math`4` is invalid syntax for Sphinx. It should be `:math:`4``.",
+     "line": 83
+    },
+    {
+     "file": "optuna/pruners/hyperband.py",
+     "issue_header": "Example code lacks `import optuna` or explicit study creation context",
+     "issue_content": "The example uses `create_study` and `HyperbandPruner` but does not show the full context of how the study is run or if `optuna` is imported. While `from optuna import create_study` is present, it is good practice to ensure the example is self-contained. More importantly, `study.optimize(objective)` without `n_trials` will run indefinitely or until interrupted, which is not a good example for a pruner. It should specify `n_trials` to demonstrate the pruning effect.",
+     "line": 60
+    },
+    {
+     "file": "optuna/pruners/hyperband.py",
+     "issue_header": "Example objective function is too simple to demonstrate pruning",
+     "issue_content": "The objective function `x ** 2` with `x` in `[-1, 1]` is a simple convex function. Hyperband pruning is designed for expensive, multi-step trials (like training neural networks) where intermediate results are available. A simple one-step objective does not benefit from pruning and does not demonstrate the utility of `HyperbandPruner`. The example should ideally use a multi-step objective or at least mention that pruning is for multi-step trials.",
+     "line": 60
+    },
+    {
+     "file": "optuna/pruners/hyperband.py",
+     "issue_header": "Inconsistent explanation of parameter `r`",
+     "issue_content": "The description for `min_resource` says \"Basically, a smaller :math:`r` will give a result faster, but a larger :math:`r` will give a better guarantee...\". This is a heuristic explanation that might be misleading without context. The paper suggests `r` is the minimum resource. The trade-off is between exploration and exploitation. The current explanation is vague and potentially inaccurate regarding 'guarantee'. It should be more precise or reference the paper's specific claims.",
+     "line": 52
+    },
+    {
+     "file": "optuna/pruners/hyperband.py",
+     "issue_header": "Vague explanation for `reduction_factor`",
+     "issue_content": "The description for `reduction_factor` says \"Basically, the paper says that results are not very sensitive to the choice of :math:`\\eta`.\" This is a weak explanation. It should explain what `eta` does (controls the rate of reduction in the number of trials) and why it might be insensitive, or provide a recommended default value. Just stating insensitivity is not helpful for users choosing a value.",
+     "line": 58
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 178887,
+    "completion_tokens": 2855,
+    "total_tokens": 181742
+   },
+   "duration_s": 137.1
+  },
+  {
+   "instance_id": "modin-project__modin-4215@69f9652",
+   "repo": "modin-project/modin",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "modin/experimental/core/storage_formats/omnisci/query_compiler.py",
+     "issue_header": "Missing docstring for new public method",
+     "issue_content": "The new method `dt_hour` lacks a docstring. Existing methods like `dt_day` (line 565) have docstrings. Add a docstring describing the method's purpose and return value to maintain consistency and documentation standards.",
+     "start_line": 568,
+     "end_line": 571
+    },
+    {
+     "file": "modin/experimental/core/execution/native/implementations/omnisci_on_native/test/test_dataframe.py",
+     "issue_header": "Test data inconsistency in TestDateTime",
+     "issue_content": "The test data `self.datetime_data` includes a column 'd' with only 2 rows, while other columns (e.g., 'c') have 4 rows. This creates an inconsistent DataFrame shape for the `TestDateTime` class. Ensure all columns in `self.datetime_data` have the same number of rows to avoid potential alignment issues or misleading test scenarios.",
+     "start_line": 1748,
+     "end_line": 1750
+    },
+    {
+     "file": "modin/experimental/core/execution/native/implementations/omnisci_on_native/test/test_dataframe.py",
+     "issue_header": "Incomplete test coverage for dt.hour",
+     "issue_content": "The test `test_dt_hour` only tests the 'd' column. It should ideally test all datetime columns in `self.datetime_data` (e.g., 'c' and 'd') to ensure robustness, similar to how `test_dt_year` and `test_dt_month` might be structured if they tested multiple columns. Alternatively, ensure the test data is consistent across all columns.",
+     "start_line": 1748,
+     "end_line": 1750
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 106129,
+    "completion_tokens": 1904,
+    "total_tokens": 108033
+   },
+   "duration_s": 111.0
+  },
+  {
+   "instance_id": "hpcaitech__ColossalAI-4080@dc82ade",
+   "repo": "hpcaitech/ColossalAI",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "applications/Chat/coati/trainer/ppo.py",
+     "issue_header": "AttributeError: 'NaiveReplayBuffer' object has no attribute 'sampler'",
+     "issue_content": "In the `_learn` method, the code attempts to access `self.dataloader.sampler`. However, `self.dataloader` is created inside the `fit` method of the parent class `OnPolicyTrainer` (base.py) via `self.strategy.setup_dataloader(self.buffer, ...)`. The `NaiveReplayBuffer` does not have a `sampler` attribute, and `setup_dataloader` likely returns a standard DataLoader or a boosted one that might not expose a `DistributedSampler` directly on the buffer object if the buffer isn't a Dataset. More critically, `self.dataloader` is assigned to `self` in the parent class, but here it is accessed as if it were a local variable or a different attribute. If `self.dataloader` is not a standard DataLoader with a sampler, this will crash. Specifically, `NaiveReplayBuffer` is not a Dataset with a sampler. The `setup_dataloader` usually wraps the buffer. If the buffer doesn't support sampling via a sampler, this check `isinstance(self.dataloader.sampler, DistributedSampler)` will fail or raise AttributeError if the dataloader doesn't have a sampler attribute (e.g., if it's a simple list iterator or if the sampler is internal).",
+     "line": 183
+    },
+    {
+     "file": "applications/Chat/coati/trainer/base.py",
+     "issue_header": "AttributeError: 'NaiveReplayBuffer' object has no attribute 'sampler' (Logic Error)",
+     "issue_content": "In `OnPolicyTrainer.fit`, `self.dataloader` is assigned the result of `self.strategy.setup_dataloader(self.buffer, ...)`. In `ppo.py`, `_learn` accesses `self.dataloader.sampler`. If `self.buffer` (NaiveReplayBuffer) is passed to `setup_dataloader`, the resulting dataloader might not have a `sampler` attribute accessible in the way expected, or `NaiveReplayBuffer` might not be a valid Dataset for `DistributedSampler`. This is a risky assumption about the internal structure of the dataloader returned by the strategy.",
+     "line": 156
+    },
+    {
+     "file": "applications/Chat/coati/trainer/sft.py",
+     "issue_header": "AttributeError: 'SFTTrainer' object has no attribute 'logger'",
+     "issue_content": "In `_train`, the code uses `self.logger.warning(...)`. However, `self.logger` is only set in `_before_fit`. If `_train` is called before `_before_fit` (which is handled by `fit` in `SLTrainer`), it might be okay, but `SLTrainer.fit` calls `_before_fit` first. Wait, `SLTrainer.fit` calls `self._before_fit(*args, **kwargs)`. The `SFTTrainer._before_fit` takes `logger` and `use_wandb` as arguments. However, `SLTrainer.fit` does not pass any arguments to `_before_fit` by default in the base class signature `def _before_fit(self):`. The `SFTTrainer` overrides `_before_fit` with arguments `logger, use_wandb`. When `SLTrainer.fit` calls `self._before_fit()`, it will fail because `SFTTrainer._before_fit` expects arguments. The caller `SFTTrainer` users must pass `logger` to `fit`, but `SLTrainer.fit` signature is `def fit(self, *args, **kwargs):`. It passes `*args, **kwargs` to `_before_fit`. So if the user calls `trainer.fit(logger=...)`, it works. But the docstring and usage in examples don't show passing logger to fit. In `train_prompts.py`, `trainer.fit(...)` is called without logger. This will cause `SFTTrainer._before_fit` to fail with missing arguments if it's called, or if it's not called, `self.logger` is undefined. Actually, `SFTTrainer` inherits from `SLTrainer`. `SLTrainer.fit` calls `self._before_fit(*args, **kwargs)`. If `fit` is called without args, `_before_fit` in `SFTTrainer` will raise TypeError for missing `logger`.",
+     "line": 106
+    },
+    {
+     "file": "applications/Chat/coati/trainer/rm.py",
+     "issue_header": "AttributeError: 'RewardModelTrainer' object has no attribute 'loss'",
+     "issue_content": "In `_eval`, the code tries to log `self.loss.item()`. However, `self.loss` is only set in `_train`. If `_eval` is called (which it is, by `SLTrainer.fit`), and if `_train` hasn't run or if `self.loss` is not persisted correctly, this might fail. More importantly, `self.loss` is a tensor from the last batch of `_train`. If `_train` runs, `self.loss` is set. But in `_eval`, `self.loss` is used in the log dataframe. This is logically incorrect because the log should probably contain the eval loss or the last train loss, but mixing them is confusing. Also, `self.dist` and `self.acc` are set in `_eval`. If `_eval` is called before `_train` (not the case here), it would fail. But the main issue is that `self.loss` is not defined in `__init__` and relies on `_train` running first. If `max_epochs` is 0 or something, it might fail. But the bigger issue is that `self.loss` is a tensor, and `self.loss.item()` is used. This is fragile.",
+     "line": 103
+    },
+    {
+     "file": "applications/Chat/coati/trainer/ppo.py",
+     "issue_header": "Unused argument 'pretrain_dataloader'",
+     "issue_content": "The `PPOTrainer.__init__` accepts `pretrain_dataloader` and stores it in `self.pretrain_dataloader`. However, this attribute is never used in the `PPOTrainer` class methods (`_make_experience`, `_learn`, etc.). The PTX (Pretrain) loss logic seems to have been removed or is not implemented in this refactored version, yet the argument is still required. This is a dead code/unused parameter issue.",
+     "line": 118
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 530938,
+    "completion_tokens": 4607,
+    "total_tokens": 535545
+   },
+   "duration_s": 219.6
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-17892@cb25841",
+   "repo": "matplotlib/matplotlib",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "lib/matplotlib/lines.py",
+     "issue_header": "Redundant and incorrect validation logic",
+     "issue_content": "The check `if not is_color_like(color)` followed by `_check_in_list` is flawed. `is_color_like` returns `True` for valid colors (including named colors, hex, RGB, etc.). If `is_color_like` is `False`, the code attempts to check if the color is in `get_named_colors_mapping()`. However, `get_named_colors_mapping()` returns a dictionary (or similar mapping), and checking `color in mapping` checks keys. While this might work for named colors, the logic is confusing and potentially incorrect for edge cases. More importantly, if `is_color_like` is False, it means the color is invalid. The subsequent `_check_in_list` call is only useful if the user provided a string that *looks* like it could be a named color but isn't. If the input is not a string (e.g., an integer), `is_color_like` is False, but `_check_in_list` might behave unexpectedly or raise a confusing error. A simpler approach is to just raise a ValueError if `not is_color_like(color)`. The current implementation adds complexity without clear benefit and might mask the real issue or provide misleading error messages for non-string inputs.",
+     "start_line": 1042,
+     "end_line": 1044
+    },
+    {
+     "file": "lib/matplotlib/cbook/__init__.py",
+     "issue_header": "Inconsistent API design for _check_in_list",
+     "issue_content": "Adding `_print_supported_values` as a positional argument with a default value changes the signature of `_check_in_list`. While this works, it's better practice to keep such flags as keyword-only arguments or ensure backward compatibility is explicitly considered. More critically, the function is internal (`_check_in_list`), so changing its signature is less risky, but the logic inside is now branching based on this flag. A cleaner approach might be to have two separate functions or handle the message formatting differently. However, the main issue is that this change is driven by a specific use case in `lines.py` which might be better handled locally.",
+     "start_line": 2242,
+     "end_line": 2242
+    },
+    {
+     "file": "lib/matplotlib/lines.py",
+     "issue_header": "Potential performance regression",
+     "issue_content": "Calling `get_named_colors_mapping()` on every `set_color` call might be expensive if it constructs a new dictionary or performs heavy operations. It should be verified that this function returns a cached or static mapping. If not, this could lead to performance issues in plots with many lines or frequent color updates.",
+     "start_line": 1042,
+     "end_line": 1044
+    },
+    {
+     "file": "lib/matplotlib/lines.py",
+     "issue_header": "Error message clarity",
+     "issue_content": "If `is_color_like(color)` is False, the code falls through to `_check_in_list`. If the color is not in the named colors mapping, it raises `ValueError: 'foobar' is not a valid value for color`. This is good. However, if the color is a valid named color but `is_color_like` incorrectly returns False (unlikely but possible if `is_color_like` has bugs), the error message would be misleading. Also, if the input is not a string, `is_color_like` returns False, and then `_check_in_list` checks if the non-string value is in the named colors mapping. This will likely raise a TypeError or a confusing ValueError. The error message should be more specific about what types are accepted.",
+     "start_line": 1042,
+     "end_line": 1044
+    },
+    {
+     "file": "lib/matplotlib/cbook/__init__.py",
+     "issue_header": "Code duplication in error handling",
+     "issue_content": "The two `raise ValueError` statements in `_check_in_list` are nearly identical, differing only in the inclusion of supported values. This duplication can be reduced by constructing the error message conditionally. For example:\n```python\nmsg = \"{} is not a valid value for {}\".format(repr(v), k)\nif _print_supported_values:\n    msg += \"; supported values are {}\".format(', '.join(map(repr, values)))\nraise ValueError(msg)\n```\nThis makes the code cleaner and easier to maintain.",
+     "start_line": 2254,
+     "end_line": 2262
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 184725,
+    "completion_tokens": 3516,
+    "total_tokens": 188241
+   },
+   "duration_s": 246.4
+  },
+  {
+   "instance_id": "xorbitsai__inference-2079@5ae18b2",
+   "repo": "xorbitsai/inference",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "xinference/model/llm/vllm/core.py",
+     "issue_header": "Unused import AutoTokenizer",
+     "issue_content": "The import `from transformers import AutoTokenizer` is added at the top of the file but is not used within the `VLLMVisionModel` class or other existing classes in this file. The `VLLMVisionModel` class initializes `self._tokenizer = None` in `__init__` and never assigns a tokenizer instance in `load()`, despite using `self._tokenizer.apply_chat_template` in `async_chat`. This will result in an `AttributeError` at runtime. Either remove the unused import or implement the tokenizer loading logic.",
+     "line": 621
+    },
+    {
+     "file": "xinference/model/llm/vllm/core.py",
+     "issue_header": "VLLMVisionModel tokenizer not initialized",
+     "issue_content": "In `VLLMVisionModel.__init__`, `self._tokenizer` is set to `None`. In the `load` method, no tokenizer is loaded. However, `async_chat` calls `self._tokenizer.apply_chat_template(...)`. This will raise an `AttributeError: 'NoneType' object has no attribute 'apply_chat_template'`. The `load` method needs to instantiate the tokenizer, e.g., `self._tokenizer = AutoTokenizer.from_pretrained(self.model_path, trust_remote_code=True)`.",
+     "line": 621
+    },
+    {
+     "file": "xinference/model/llm/pytorch/intern_vl.py",
+     "issue_header": "Unused imports removed but logic depends on them",
+     "issue_content": "The diff removes `import base64`, `from io import BytesIO`, `import requests`, and `from PIL import Image` from `intern_vl.py`. However, the new helper functions `_message_content_to_intern` and `_get_prompt_and_chat_history` rely on `_decode_image` imported from `..utils`. While `_decode_image` handles the image loading, the removal of `PIL` and `requests` imports is correct if they are fully delegated. However, checking `intern_vl.py` line 45, `_decode_image` is imported. The issue is that `intern_vl.py` still uses `torch` and `ThreadPoolExecutor`. The main defect is likely that `PIL.Image` is not imported but might be needed if `_decode_image` returns something that requires PIL context or if the code structure implies local usage. Actually, looking closely, `_decode_image` is imported from `..utils`, so the removal is likely intentional. But wait, `intern_vl.py` line 185 uses `_load_image` which uses `image_file.convert('RGB')`. `image_file` comes from `_decode_image`. If `_decode_image` returns a PIL Image, `intern_vl.py` doesn't need to import PIL. This seems okay. Let's look for a stronger defect.",
+     "line": 38
+    },
+    {
+     "file": "xinference/model/llm/llm_family.json",
+     "issue_header": "Incorrect model size for InternVL2-8B-AWQ",
+     "issue_content": "In `llm_family.json`, the entry for `OpenGVLab/InternVL2-8B-AWQ` has `model_size_in_billions` set to `4`. The model name indicates it is an 8B model (and the corresponding pytorch entry `OpenGVLab/InternVL2-8B` correctly lists 8). This mismatch will cause incorrect resource allocation or model selection logic.",
+     "line": 7906
+    },
+    {
+     "file": "xinference/model/llm/pytorch/intern_vl.py",
+     "issue_header": "Stream usage calculation is incorrect",
+     "issue_content": "In `_generate_stream`, `completion_tokens` is incremented by `i` (the loop index) inside the loop. This counts the number of chunks yielded, not the number of tokens. `TextIteratorStreamer` yields text chunks, which may contain multiple tokens or parts of tokens. The token count should be derived from the tokenizer or accumulated properly, not just the iteration index. Additionally, `prompt_tokens` is calculated once, but `total_tokens` is updated per chunk. The final usage chunk logic is also flawed as it yields a separate chunk for usage which might not be standard OpenAI behavior (usually usage is in the last chunk or a separate field).",
+     "line": 276
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 341101,
+    "completion_tokens": 3305,
+    "total_tokens": 344406
+   },
+   "duration_s": 220.0
+  },
+  {
+   "instance_id": "jina-ai__serve-1256@2f495e3",
+   "repo": "jina-ai/serve",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "jina/helper.py",
+     "issue_header": "FileNotFoundError missing argument",
+     "issue_content": "The original code `raise FileNotFoundError('cannot import module from %s, file not exist', p)` was likely a typo (missing `%` operator), but the replacement `raise FileNotFoundError(f'cannot import module from {p}, file not exist')` fixes the formatting but keeps the logic. However, looking closely at the diff, the original line was `raise FileNotFoundError('cannot import module from %s, file not exist', p)`. This is actually a bug in the original code (passing a tuple to an exception that expects a string, or just a syntax error if it meant to format). The new code `raise FileNotFoundError(f'cannot import module from {p}, file not exist')` is correct. Wait, let me re-read. The original was `raise FileNotFoundError('cannot import module from %s, file not exist', p)`. This raises a FileNotFoundError with a string and an extra argument. The new code is `raise FileNotFoundError(f'cannot import module from {p}, file not exist')`. This is a valid fix. I will not report this as a defect in the PR, but rather a fix. Let's look for actual defects.",
+     "line": 252
+    },
+    {
+     "file": "jina/flow/__init__.py",
+     "issue_header": "Mixed formatting styles in f-string",
+     "issue_content": "The line `mermaid_graph.append(f'\\t{head_router}{p_r % \"head\"}:::pea-->{r}{p_e % r}:::pea')` mixes f-string interpolation with `%` formatting inside the f-string. While valid Python, it is inconsistent with the PR's goal of using f-strings exclusively and reduces readability. It should be converted to pure f-strings, e.g., `f'\\t{head_router}{p_r.format(\"head\")}...'` or similar, depending on what `p_r` is. If `p_r` is a format string, it should be `f'\\t{head_router}{p_r % \"head\"}...'` is technically correct if `p_r` is a string like `'%s'`, but it's confusing. Given the context of other changes, this should likely be fully converted to f-strings if possible, or at least noted. However, without knowing `p_r`, it's hard to fix. Let's look for clearer bugs.",
+     "line": 841
+    },
+    {
+     "file": "jina/peapods/zmq.py",
+     "issue_header": "Trailing space in error message",
+     "issue_content": "The error message in `raise TimeoutError(...)` ends with a trailing space: `'is the server still online? is the network broken? are \"port\" correct? '`. This is a minor cosmetic issue introduced by the refactoring.",
+     "line": 429
+    },
+    {
+     "file": "jina/peapods/zmq.py",
+     "issue_header": "Trailing space in error message",
+     "issue_content": "The error message in `raise TimeoutError(...)` ends with a trailing space: `'is the server still online? is the network broken? are \"port\" correct? '`. This is a minor cosmetic issue introduced by the refactoring.",
+     "line": 461
+    },
+    {
+     "file": "jina/peapods/zmq.py",
+     "issue_header": "Trailing space in error message",
+     "issue_content": "The error message in `raise TimeoutError(...)` ends with a trailing space: `'is the server still online? is the network broken? are \"port\" correct? '`. This is a minor cosmetic issue introduced by the refactoring.",
+     "line": 488
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 285619,
+    "completion_tokens": 2231,
+    "total_tokens": 287850
+   },
+   "duration_s": 185.5
+  },
+  {
+   "instance_id": "huggingface__datasets-586@034c1c0",
+   "repo": "huggingface/datasets",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "datasets/csv/csv.py",
+     "issue_header": "Use ValueError instead of assert for input validation",
+     "issue_content": "Using `assert` for input validation is discouraged because assertions can be disabled at runtime (e.g., with the `-O` flag). Replace `assert` with `raise ValueError(...)` to ensure the error is always raised when `data_files` is empty.",
+     "line": 59
+    },
+    {
+     "file": "datasets/json/json.py",
+     "issue_header": "Use ValueError instead of assert for input validation",
+     "issue_content": "Using `assert` for input validation is discouraged because assertions can be disabled at runtime. Replace `assert` with `raise ValueError(...)` to ensure the error is always raised when `data_files` is empty.",
+     "line": 46
+    },
+    {
+     "file": "datasets/pandas/pandas.py",
+     "issue_header": "Use ValueError instead of assert for input validation",
+     "issue_content": "Using `assert` for input validation is discouraged because assertions can be disabled at runtime. Replace `assert` with `raise ValueError(...)` to ensure the error is always raised when `data_files` is empty.",
+     "line": 16
+    },
+    {
+     "file": "datasets/text/text.py",
+     "issue_header": "Use ValueError instead of assert for input validation",
+     "issue_content": "Using `assert` for input validation is discouraged because assertions can be disabled at runtime. Replace `assert` with `raise ValueError(...)` to ensure the error is always raised when `data_files` is empty.",
+     "line": 14
+    },
+    {
+     "file": "src/nlp/arrow_reader.py",
+     "issue_header": "Incorrect logic for preventing slice on empty table",
+     "issue_content": "The condition `not (skip == 0 and take == len(pa_table))` does not correctly prevent slicing an empty table. If `pa_table` is empty (len 0), `take` might be 0, and `skip` 0, satisfying the exclusion, but if `take` is non-zero or `skip` is non-zero, it might still slice. More importantly, slicing an empty table with `skip=0, take=0` is usually safe, but the comment suggests avoiding segfaults. The logic should likely check `if len(pa_table) == 0` explicitly or ensure `skip + take <= len(pa_table)`. The current fix is fragile and doesn't address the root cause of potential segfaults on empty tables if `take` > 0.",
+     "start_line": 291,
+     "end_line": 292
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 86830,
+    "completion_tokens": 2200,
+    "total_tokens": 89030
+   },
+   "duration_s": 108.7
+  },
+  {
+   "instance_id": "networkx__networkx-4602@b2da108",
+   "repo": "networkx/networkx",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "networkx/algorithms/approximation/tests/test_maxcut.py",
+     "issue_header": "Redundant set conversion",
+     "issue_content": "The code converts the result of `random.sample` to a `set` immediately: `set(random.sample(...))`. Since `random.sample` returns a list, and the variable `initial_cut` is used as a set in the subsequent call, this is correct logic, but the PR description mentions using `sorted` for reproducibility. However, `random.sample` on a sorted list is still random. The main issue is that `random.sample` returns a list, so wrapping it in `set()` is fine, but if the goal was just to fix the deprecation, `list(G.nodes())` would be sufficient and faster than `sorted()`. Using `sorted()` implies an ordering that isn't necessary for randomness and adds O(N log N) overhead. Consider using `list(G.nodes())` instead of `sorted(G.nodes())` for performance, unless deterministic ordering of the input to sample is strictly required for some other reason (which it isn't for random sampling).",
+     "line": 42
+    },
+    {
+     "file": "networkx/algorithms/centrality/betweenness.py",
+     "issue_header": "Performance regression with sorted()",
+     "issue_content": "Using `sorted(G.nodes())` converts the node view to a sorted list. This is O(N log N). `random.sample` only requires a sequence. Converting to a list `list(G.nodes())` is O(N) and sufficient to fix the deprecation warning. Sorting is unnecessary for random sampling and introduces a significant performance penalty for large graphs.",
+     "line": 123
+    },
+    {
+     "file": "networkx/algorithms/triads.py",
+     "issue_header": "Performance regression with sorted()",
+     "issue_content": "Similar to other files, `sorted(G.nodes())` is used. This adds unnecessary sorting overhead. `list(G.nodes())` is sufficient to satisfy `random.sample`'s requirement for a sequence and is more efficient.",
+     "line": 398
+    },
+    {
+     "file": "networkx/generators/directed.py",
+     "issue_header": "Performance regression with sorted()",
+     "issue_content": "The inner function `sample` uses `sorted(nodes)`. Since `nodes` is a set, converting it to a list `list(nodes)` is sufficient. Sorting is not required for random sampling and degrades performance.",
+     "line": 370
+    },
+    {
+     "file": "networkx/generators/internet_as_graphs.py",
+     "issue_header": "Performance regression with sorted()",
+     "issue_content": "The code uses `sorted(node_options)`. `node_options` is a set. Converting to `list(node_options)` is sufficient and more efficient than sorting.",
+     "line": 311
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 92589,
+    "completion_tokens": 1955,
+    "total_tokens": 94544
+   },
+   "duration_s": 120.4
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-29401@819e167",
+   "repo": "scikit-learn/scikit-learn",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sklearn/compose/_target.py",
+     "issue_header": "Missing import for LinearRegression in test",
+     "issue_content": "The test file `sklearn/compose/tests/test_target.py` uses `LinearRegression()` in the new test function `test_transform_target_regressor_not_warns_with_global_output_set`, but `LinearRegression` is not imported. The import statement `from sklearn.linear_model import LinearRegression` is missing.",
+     "line": 202
+    },
+    {
+     "file": "sklearn/compose/_target.py",
+     "issue_header": "Side effect on transformer instance state",
+     "issue_content": "Calling `self.transformer_.set_output(transform=\"default\")` inside `_fit_transformer` modifies the state of the internal transformer instance. This side effect persists after `fit` is complete. If the user later calls `transform` or `inverse_transform` on the `TransformedTargetRegressor`, the internal transformer might behave unexpectedly if it relies on the output configuration set during fit, or if the user expected the global config to apply to the transformer's transform methods. A cleaner approach might be to temporarily override the config or handle the warning suppression without mutating the transformer's persistent state, or ensure this mutation is idempotent and documented.",
+     "line": 202
+    },
+    {
+     "file": "sklearn/compose/tests/test_target.py",
+     "issue_header": "Test does not verify absence of warnings explicitly",
+     "issue_content": "The test uses `@pytest.mark.filterwarnings(\"error\")` which turns warnings into errors. While this effectively tests that no warnings are raised, it is often clearer to use `pytest.warns(None, ...)` or `recwarn` to explicitly assert that no warnings were generated, making the test's intent more readable and robust against other potential errors that might be raised.",
+     "line": 408
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 251547,
+    "completion_tokens": 2526,
+    "total_tokens": 254073
+   },
+   "duration_s": 378.9
+  },
+  {
+   "instance_id": "xorbitsai__inference-1168@f3ada96",
+   "repo": "xorbitsai/inference",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "xinference/api/oauth2/auth_service.py",
+     "issue_header": "Insecure API Key Validation Regex",
+     "issue_content": "The regex pattern `^[sk]{2}-[a-zA-Z0-9]{48}$` is incorrect. `[sk]{2}` matches any two characters from the set {s, k}, allowing keys like 'ss-...', 'kk-...', or 'ks-...'. It should be `^sk-[a-zA-Z0-9]{48}$` to strictly enforce the 'sk-' prefix. Additionally, the error message claims a total length of 51, but 'sk-' (3) + 48 = 51, so the length is correct, but the prefix validation is broken.",
+     "line": 46
+    },
+    {
+     "file": "xinference/client/restful/restful_client.py",
+     "issue_header": "Missing Import for Dict",
+     "issue_content": "The type hint `Dict[str, str]` is used in `self._headers: Dict[str, str] = {}`, but `Dict` is not imported from `typing`. This will cause a `NameError` at runtime. It should be imported or replaced with `dict[str, str]` if using Python 3.9+.",
+     "line": 663
+    },
+    {
+     "file": "xinference/client/restful/restful_client.py",
+     "issue_header": "Undefined Method _get_token",
+     "issue_content": "The code calls `client._get_token()` in `cmdline.py` (e.g., line 391), but this method is not defined in the `Client` class in `restful_client.py`. The existing method is `_set_token`. This will cause an `AttributeError`.",
+     "line": 666
+    },
+    {
+     "file": "xinference/api/oauth2/auth_service.py",
+     "issue_header": "Inefficient Linear Search for API Key Lookup",
+     "issue_content": "The `get_user_with_api_key` method iterates through all users and all their API keys for every request. For large configurations, this is O(N*M). It is better to build a reverse index (api_key -> user) during `init_auth_config` or cache the lookup, similar to how user lookup might be optimized. Given the strict validation in `init_auth_config`, a dictionary mapping keys to users could be maintained.",
+     "line": 108
+    },
+    {
+     "file": "xinference/api/oauth2/auth_service.py",
+     "issue_header": "Potential Logic Error in Token Data Assignment",
+     "issue_content": "If `through_api_key` is True, `token_data` is assigned inside the `else` block of the `try/except`? No, it's assigned after. However, if `through_api_key` is False, `token_data` is assigned in the `try` block. If `through_api_key` is True, `token_data` is assigned at line 113. But if `through_api_key` is False and an exception occurs, `token_data` is undefined, leading to an `UnboundLocalError` when accessing `token_data.scopes` later. The `raise credentials_exception` in the `except` block handles the error, but the structure is fragile. More critically, if `through_api_key` is True, `token_data` is created. If `through_api_key` is False, `token_data` is created in the try block. If the try block fails, it raises. So `token_data` is always defined if we reach line 115. Wait, if `through_api_key` is False, and `jwt.decode` succeeds, `token_data` is set. If it fails, `credentials_exception` is raised. So `token_data` is safe. However, the variable `token_data` is used in `if \"admin\" in token_data.scopes:`. If `through_api_key` is True, `token_data` is set at line 113. If `through_api_key` is False, it is set at line 103. This logic is actually correct regarding scope, but the variable `token_data` is not initialized before the try block, which is a style issue but not a bug due to the raise. A clearer defect is that `token_data` is not defined if `through_api_key` is False and the try block succeeds? No, it is defined. The real issue is that `token_data` is not defined in the scope if the code path is complex. Actually, looking closely: if `through_api_key` is False, we enter the try block. If it succeeds, `token_data` is set. If it fails, we raise. So we never reach line 115 with an undefined `token_data`. This is not a defect. I will replace this with a more concrete one.",
+     "line": 95
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    },
+    {
+     "comment_index": 2,
+     "passed": false
+    },
+    {
+     "comment_index": 3,
+     "passed": false
+    },
+    {
+     "comment_index": 4,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 246784,
+    "completion_tokens": 3104,
+    "total_tokens": 249888
+   },
+   "duration_s": 227.7
+  },
+  {
+   "instance_id": "networkx__networkx-7159@7e65b7d",
+   "repo": "networkx/networkx",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "networkx/readwrite/tests/test_gml.py",
+     "issue_header": "Invalid GML syntax in test string",
+     "issue_content": "The change replaces `u'u\\4200'` with `u'u\\\\4200'`. In the original code, `\\4200` was an invalid octal escape (digits 8 and 9 are not valid in octal), which likely triggered the warning the PR aims to fix. However, the new string `u'u\\\\4200'` results in the literal string `u'u\\4200'` being passed to the parser. If the GML parser expects a valid Unicode escape or a specific format, this literal backslash might not be the correct fix for the underlying issue or might cause the test to pass for the wrong reason (parsing a literal backslash instead of a character). More importantly, `u'...'` syntax is deprecated in Python 3.3+ and removed in 3.12. The test should use standard string literals or `\\u4200` if a Unicode character is intended. The current fix creates a string with a literal backslash, which may not be valid GML for a node ID/label depending on the spec, or it might just be masking the issue. A better fix would be to use a valid Unicode escape like `\\u4200` if the intent is to test Unicode handling, or ensure the string is valid GML.",
+     "start_line": 557,
+     "end_line": 558
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 1041058,
+    "completion_tokens": 6584,
+    "total_tokens": 1047642
+   },
+   "duration_s": 337.5
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-27172@9f80d55",
+   "repo": "matplotlib/matplotlib",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "lib/matplotlib/tests/test_legend.py",
+     "issue_header": "Incorrect usage of pytest.raises for warnings",
+     "issue_content": "The test `test_legend_nolabels_warning` uses `pytest.raises(UserWarning)` to check for a warning. `pytest.raises` is for exceptions, not warnings. This will fail because `UserWarning` is raised as a warning, not an exception. It should use `pytest.warns(UserWarning)` instead.",
+     "line": 1382
+    },
+    {
+     "file": "lib/matplotlib/tests/test_legend.py",
+     "issue_header": "Test does not verify warning suppression behavior",
+     "issue_content": "The test `test_legend_nolabels_draw` suppresses warnings and calls `plt.legend()`, but it does not assert anything. It should verify that the legend is created (or not) or that no warning was issued, to ensure the suppression logic works as intended. Currently, it's a no-op test.",
+     "line": 1387
+    },
+    {
+     "file": "lib/matplotlib/legend.py",
+     "issue_header": "Warning category not specified",
+     "issue_content": "The call to `_api.warn_external()` does not specify a warning category. While `UserWarning` is the default, it is best practice to explicitly specify the category (e.g., `category=UserWarning`) for clarity and consistency with other warnings in the codebase.",
+     "line": 1358
+    },
+    {
+     "file": "galleries/examples/text_labels_and_annotations/custom_legends.py",
+     "issue_header": "Example code triggers warning",
+     "issue_content": "The example code calls `ax.legend()` without labels, which now triggers a `UserWarning`. This will cause the example to fail or produce unexpected output in the documentation build. The example should either provide labels or explicitly suppress the warning to demonstrate the intended behavior without noise.",
+     "line": 39
+    },
+    {
+     "file": "lib/matplotlib/tests/test_legend.py",
+     "issue_header": "Test relies on implicit label from plot",
+     "issue_content": "In `test_text_nohandler_warning`, `ax.plot([0], label=\"mock data\")` is added. This ensures there is a handle, but the test is specifically for `Text` artists with labels. The warning logic checks for *any* handles. If the intent is to test that `Text` labels are ignored, the test should ensure that the `plot` call does not interfere with the specific warning condition being tested, or the test name/description should be updated to reflect that it tests the general 'no valid handles' warning.",
+     "line": 639
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 314165,
+    "completion_tokens": 3567,
+    "total_tokens": 317732
+   },
+   "duration_s": 239.5
+  },
+  {
+   "instance_id": "scrapy__scrapy-2456@c7bb2fa",
+   "repo": "scrapy/scrapy",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "scrapy/exporters.py",
+     "issue_header": "Logic error in JSON indent handling",
+     "issue_content": "The condition `self.indent is not None and self.indent > 0` prevents `indent=0` from being passed to the encoder. However, the documentation and tests imply that `indent=0` should result in newlines between items (compact but separated). By passing `None` to the encoder for `indent=0`, the standard JSON encoder produces a single-line output, contradicting the documented behavior for `indent<=0`.",
+     "line": 106
+    },
+    {
+     "file": "scrapy/exporters.py",
+     "issue_header": "XML indentation logic is inconsistent with documentation",
+     "issue_content": "The `_beautify_newline` method in `XmlItemExporter` only adds newlines if `self.indent > 0 or new_item`. This means for `indent=0` or `indent=-1`, no newlines are added between items, resulting in a single-line XML output. This contradicts the documentation which states `indent<=0` should put each item on its own line.",
+     "line": 153
+    },
+    {
+     "file": "scrapy/exporters.py",
+     "issue_header": "XML indentation depth calculation is incorrect",
+     "issue_content": "In `_export_xml_field`, the `depth` parameter is incremented for nested elements (`depth+1`), but the initial call in `export_item` uses `depth=2` for fields inside an item. However, `_beautify_indent` is called with `depth=1` for the item element itself. This leads to inconsistent indentation levels where fields are indented relative to the item, but the logic for closing tags and nested structures may result in misaligned indentation, especially for complex nested structures.",
+     "line": 163
+    },
+    {
+     "file": "tests/test_feedexport.py",
+     "issue_header": "Test assertions use `.strip()` masking whitespace issues",
+     "issue_content": "The test `self.assertEqual(row['expected'].strip(), data)` strips whitespace from both expected and actual data. This hides potential issues with leading/trailing newlines or spaces in the generated output, which are critical for 'beautified' exports. Tests should assert exact byte-for-byte equality to ensure the formatting is precise.",
+     "line": 514
+    },
+    {
+     "file": "docs/topics/exporters.rst",
+     "issue_header": "Documentation typo",
+     "issue_content": "The word 'indentated' is misspelled. It should be 'indented'. Also, 'it's' should be 'its' in 'each item on it's own line'.",
+     "line": 223
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 368520,
+    "completion_tokens": 3111,
+    "total_tokens": 371631
+   },
+   "duration_s": 193.3
+  },
+  {
+   "instance_id": "ray-project__ray-49918@04cf1ee",
+   "repo": "ray-project/ray",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "python/ray/tests/test_actor_failures.py",
+     "issue_header": "Import of removed exception `AsyncioActorExit`",
+     "issue_content": "The PR description states that `AsyncioActorExit` is removed, but the test file still imports it (`from ray.exceptions import AsyncioActorExit`) and uses it in `test_exit_actor_async_actor_user_catch_err_should_still_exit`. This will cause an ImportError or NameError at runtime. The test should be updated to catch `SystemExit` or the appropriate new exception, or the import should be removed if the test is no longer valid.",
+     "line": 13
+    },
+    {
+     "file": "python/ray/_raylet.pyx",
+     "issue_header": "Race condition in exception handling and exit check",
+     "issue_content": "The code stores `task_exception_instance` and then checks `core_worker.get_current_actor_should_exit()` in the `finally` block. If an exception occurs, it is re-raised. However, if `exit_actor()` is called (setting the flag) and then an unrelated exception occurs, the unrelated exception is raised, potentially masking the exit request or causing inconsistent state. More critically, if `exit_actor()` is called, the flag is set, but if the task completes successfully (no exception), the check `if core_worker.get_current_actor_should_exit()` raises `SystemExit`. This logic seems correct for the success path, but the interaction with the exception path needs careful review to ensure `exit_actor` intent isn't lost if an exception happens concurrently. Specifically, if `exit_actor` is called, it sets the flag. If the task then raises an exception, the exception is raised. The actor might not exit cleanly as intended if the exception handling in the core worker doesn't respect the exit flag. The current implementation raises the exception, which might terminate the task, but the 'exit' semantics might be different from 'crash'. However, the bigger issue is likely that `raise_sys_exit_with_custom_error_message` is called in the `finally` block *after* potentially re-raising an exception? No, it's an `if` after the `if task_exception_instance`. Wait, the indentation in the diff shows:\n```python\n                    if task_exception_instance is not None:\n                        raise task_exception_instance\n                    if core_worker.get_current_actor_should_exit():\n                        raise_sys_exit_with_custom_error_message(\"exit_actor() is called.\")\n```\nThis is inside the `finally` block? No, looking at the diff:\n```diff\n                 finally:\n                     # Record the end of the task log.\n                     worker.record_task_log_end(task_id, attempt_number)\n+                    if task_exception_instance is not None:\n+                        raise task_exception_instance\n+                    if core_worker.get_current_actor_should_exit():\n+                        raise_sys_exit_with_custom_error_message(\"exit_actor() is called.\")\n```\nRaising an exception in a `finally` block is dangerous. If `task_exception_instance` is raised, it propagates. If `get_current_actor_should_exit()` is true, it raises `SystemExit`. If both are true (exception occurred AND exit requested), the exception is raised first. This might be acceptable, but raising in `finally` can suppress other exceptions or cause unexpected behavior. It's better to handle this outside the try/finally or ensure the logic is robust.",
+     "start_line": 1990,
+     "end_line": 1993
+    },
+    {
+     "file": "python/ray/tests/test_actor_failures.py",
+     "issue_header": "Incomplete/Commented out assertions in async actor tests",
+     "issue_content": "In `test_exit_actor_async_actor_raise_immediately`, the assertions are commented out (`# with pytest.raises...`, `# wait_for_condition...`). This means the test does not actually verify that the actor exits or that the atexit handler runs. The test is effectively a no-op for the core functionality it claims to test. The author should uncomment and fix these assertions to ensure the test is valid.",
+     "start_line": 1000,
+     "end_line": 1015
+    },
+    {
+     "file": "src/ray/core_worker/context.cc",
+     "issue_header": "Resetting exit flag on task start",
+     "issue_content": "The line `current_actor_should_exit_ = false;` in `SetCurrentTask` resets the exit flag for every new task. This is correct behavior to ensure a new task doesn't inherit the exit state from a previous one. However, if `exit_actor()` is called in a task, the flag is set. If the task completes (or crashes) and a new task is scheduled, the flag is reset. This seems correct. But consider the case where `exit_actor` is called, the flag is set, and the core worker loop checks it. If the check happens *after* the task completes but *before* the next task starts, it might exit. If it happens *after* the next task starts, the flag is reset and the actor continues. This race condition is inherent in the design. The comment in the PR says 'checked regularly by core worker'. The check in `RunTaskExecutionLoop` (in `core_worker.cc`) happens periodically. If the period is long, the actor might process many tasks after `exit_actor` is called. This is a design limitation, but not necessarily a defect in the code itself, unless the expectation is immediate exit. The PR description acknowledges 'short delay'. This is acceptable.",
+     "line": 298
+    },
+    {
+     "file": "python/ray/actor.py",
+     "issue_header": "Missing check for actor mode in `exit_actor`",
+     "issue_content": "The function `exit_actor` checks `if worker.mode == ray.WORKER_MODE and not worker.actor_id.is_nil():`. It then calls `worker.core_worker.set_current_actor_should_exit()`. However, it does not raise an error if this condition is false (i.e., if called outside an actor). The original code (before this PR) likely raised an error or did nothing. The new code silently does nothing if not in an actor. This might be confusing for users. It should probably raise a `RuntimeError` or similar if called outside an actor context, consistent with other actor-only APIs.",
+     "line": 1787
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 220956,
+    "completion_tokens": 3486,
+    "total_tokens": 224442
+   },
+   "duration_s": 198.5
+  },
+  {
+   "instance_id": "optuna__optuna-1087@4177569",
+   "repo": "optuna/optuna",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "optuna/integration/chainermn.py",
+     "issue_header": "Missing `log` parameter in delegate call",
+     "issue_content": "The `suggest_float` method accepts a `log` argument but does not pass it to `self.delegate.suggest_float`. This causes the logarithmic distribution setting to be ignored, leading to incorrect sampling behavior when `log=True`.",
+     "start_line": 192,
+     "end_line": 192
+    },
+    {
+     "file": "optuna/integration/chainermn.py",
+     "issue_header": "Incomplete implementation of abstract methods",
+     "issue_content": "The PR adds `suggest_float` to `ChainerMNTrial` but does not implement other abstract methods defined in `BaseTrial` (e.g., `suggest_uniform`, `suggest_int`, `report`, etc.). Since `BaseTrial` is now an abstract class with `@abc.abstractmethod`, `ChainerMNTrial` will fail to instantiate or raise errors if these methods are not implemented.",
+     "start_line": 189,
+     "end_line": 200
+    },
+    {
+     "file": "optuna/trial.py",
+     "issue_header": "Redundant `raise NotImplementedError` with `@abc.abstractmethod`",
+     "issue_content": "Methods decorated with `@abc.abstractmethod` do not need to explicitly `raise NotImplementedError`. The abstract base class mechanism handles the enforcement. While not a bug, it is redundant code that should be cleaned up for clarity.",
+     "start_line": 32,
+     "end_line": 36
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 105049,
+    "completion_tokens": 2089,
+    "total_tokens": 107138
+   },
+   "duration_s": 135.1
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-23548@cc5e175",
+   "repo": "scikit-learn/scikit-learn",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "sklearn/metrics/tests/test_ranking.py",
+     "issue_header": "Dead code in test function",
+     "issue_content": "The lines `coverage_error([1, 0, 1], [[0.25, 0.5, 0.5]])` and `coverage_error([[1, 0, 1]], [0.25, 0.5, 0.5])` are unreachable because they follow a `pytest.raises` context manager block that raises an exception on the first call. The test will only verify the first case. To test all three cases, they should be separate test functions or use `pytest.mark.parametrize`.",
+     "start_line": 1572,
+     "end_line": 1574
+    },
+    {
+     "file": "sklearn/metrics/tests/test_common.py",
+     "issue_header": "Hacky workaround in common test",
+     "issue_content": "Reshaping inputs specifically for `coverage_error` inside a generic common test (`test_regression_thresholded_inf_nan_input`) is a code smell. It suggests that `coverage_error` has different input requirements than other thresholded metrics, which should ideally be handled by excluding it from this specific parametrized test or by ensuring the test framework handles 1D vs 2D expectations consistently. A cleaner approach might be to skip `coverage_error` in this specific test if it requires 2D, or ensure the test passes 2D arrays for all metrics that require them.",
+     "start_line": 912,
+     "end_line": 914
+    },
+    {
+     "file": "sklearn/metrics/_ranking.py",
+     "issue_header": "Inconsistent input validation with other metrics",
+     "issue_content": "Changing `ensure_2d=False` to `ensure_2d=True` makes `coverage_error` stricter than many other metrics in scikit-learn which accept 1D arrays for single-label classification. While the PR aims to fix an error message, forcing 2D input might break existing user code that passes 1D arrays (e.g., `coverage_error([1, 0], [0.5, 0.5])`). If 1D support is intended to be removed, this should be documented as a breaking change. If 1D support is still desired, the fix should involve reshaping 1D inputs to 2D internally rather than rejecting them.",
+     "start_line": 1158,
+     "end_line": 1159
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 382437,
+    "completion_tokens": 4511,
+    "total_tokens": 386948
+   },
+   "duration_s": 278.1
+  },
+  {
+   "instance_id": "python-telegram-bot__python-telegram-bot-4168@96ca73d",
+   "repo": "python-telegram-bot/python-telegram-bot",
+   "pr_type": "feature",
+   "skill_ids": [],
+   "findings": [],
+   "per_comment": [],
+   "passed": null,
+   "error": "unparseable reviewer output",
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 3801,
+    "completion_tokens": 4090,
+    "total_tokens": 7891
+   },
+   "duration_s": 110.9
+  },
+  {
+   "instance_id": "certbot__certbot-7270@65f464e",
+   "repo": "certbot/certbot",
+   "pr_type": "other",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "certbot/compat/filesystem.py",
+     "issue_header": "Incorrect logic for checking execute permissions on Windows",
+     "issue_content": "The condition `mode & ntsecuritycon.FILE_GENERIC_EXECUTE == ntsecuritycon.FILE_GENERIC_EXECUTE` is incorrect due to operator precedence. The bitwise AND `&` has lower precedence than `==`, so this evaluates as `mode & (ntsecuritycon.FILE_GENERIC_EXECUTE == ntsecuritycon.FILE_GENERIC_EXECUTE)`, which simplifies to `mode & True` (i.e., `mode & 1`). This will return True if the least significant bit of the mode is set, regardless of actual execute permissions. It should be `(mode & ntsecuritycon.FILE_GENERIC_EXECUTE) == ntsecuritycon.FILE_GENERIC_EXECUTE`.",
+     "start_line": 298,
+     "end_line": 318
+    },
+    {
+     "file": "certbot/constants.py",
+     "issue_header": "Unnecessary and potentially harmful use of os.path.normpath on URLs",
+     "issue_content": "The keys and values in `LE_REUSE_SERVERS` are ACME server URLs (strings like 'acme-v02.api.letsencrypt.org/directory'). Applying `os.path.normpath` to these strings is semantically incorrect. While it might normalize slashes on Windows, it treats the URL as a file path, which is misleading and could lead to unexpected behavior if the path components change. These are just string identifiers for servers; they should remain as plain strings.",
+     "start_line": 172,
+     "end_line": 175
+    },
+    {
+     "file": "certbot/tests/compat/filesystem_test.py",
+     "issue_header": "Incorrect index used in DeleteAce loop",
+     "issue_content": "In the `_execute_mock` function, the loop `for _ in range(1, dacl.GetAceCount()): dacl.DeleteAce(1)` always deletes the ACE at index 1. As ACEs are deleted, the indices shift. To remove all ACEs except the first one (index 0), one should delete from the end or adjust the index. A safer approach is to delete ACEs in reverse order or repeatedly delete index 1 until only one remains, but the current logic is flawed because `DeleteAce(1)` removes the second ACE, then the next iteration removes the new second ACE, which was originally the third, etc. However, if the goal is to keep only the first ACE, deleting index 1 repeatedly is actually correct *if* the count decreases. But `range(1, dacl.GetAceCount())` is evaluated once at the start. If there are 3 ACEs, it loops twice. First delete index 1 (removes 2nd). Now 2 ACEs left. Second delete index 1 (removes new 2nd, which was 3rd). This leaves the 1st. So the logic might be coincidentally correct for small numbers, but it's fragile. A clearer way is `while dacl.GetAceCount() > 1: dacl.DeleteAce(1)`.",
+     "start_line": 435,
+     "end_line": 435
+    },
+    {
+     "file": "certbot/tests/util_test.py",
+     "issue_header": "Duplicate code for Windows runtime mocking",
+     "issue_content": "The `_fix_windows_runtime` context manager is defined in both `certbot/tests/compat/filesystem_test.py` and `certbot/tests/util_test.py`. This code should be extracted to a shared utility module (e.g., `certbot/tests/util.py`) to avoid duplication and ensure consistency.",
+     "start_line": 66,
+     "end_line": 75
+    },
+    {
+     "file": "certbot/compat/filesystem.py",
+     "issue_header": "Missing import for ntsecuritycon",
+     "issue_content": "The function `_win_is_executable` uses `ntsecuritycon.FILE_GENERIC_EXECUTE`, but `ntsecuritycon` is not imported in `certbot/compat/filesystem.py`. This will raise a `NameError` on Windows. The import `import ntsecuritycon` (or `from ntsecuritycon import FILE_GENERIC_EXECUTE`) is missing.",
+     "start_line": 298,
+     "end_line": 318
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    }
+   ],
+   "passed": true,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 930972,
+    "completion_tokens": 5352,
+    "total_tokens": 936324
+   },
+   "duration_s": 254.3
+  },
+  {
+   "instance_id": "hpcaitech__ColossalAI-6059@802df11",
+   "repo": "hpcaitech/ColossalAI",
+   "pr_type": "bug_fix",
+   "skill_ids": [],
+   "findings": [
+    {
+     "file": "colossalai/quantization/fp8.py",
+     "issue_header": "Module-level side effect and potential runtime error",
+     "issue_content": "The line `cuda_arch = int(\"\".join(str(i) for i in torch.cuda.get_device_capability()))` executes at import time. This will raise a `RuntimeError` if no CUDA device is available (e.g., during CPU-only imports or testing on non-GPU machines). It should be wrapped in a try-except block or moved inside the functions that need it, defaulting to a safe value (e.g., 0) if unavailable.",
+     "line": 14
+    },
+    {
+     "file": "colossalai/quantization/fp8.py",
+     "issue_header": "Typo in function name",
+     "issue_content": "The function `all_gather_fp8_lagacy` contains a typo in its name ('lagacy' instead of 'legacy'). This should be corrected to `all_gather_fp8_legacy` for consistency and professionalism.",
+     "line": 653
+    },
+    {
+     "file": "colossalai/quantization/fp8.py",
+     "issue_header": "Inconsistent return type for async_op",
+     "issue_content": "In `all_gather_fp8`, if `process_group_is_intranode(group)` is true, it returns `dist.all_gather(...)`. If `async_op=True`, `dist.all_gather` returns a `Work` object. However, the `_all_gather_fp8` path returns a `Handle` object. The caller might expect a consistent type (e.g., always `Handle` or always `Work`) or might not handle the `Work` object correctly if it expects `Handle` methods like `wait()` (though `Work` also has `wait()`, the types are distinct). More critically, `dist.all_gather` with `async_op=True` returns a `Work` object, but the function signature implies returning `Optional[Handle]`. This type mismatch can cause issues if the caller relies on `Handle` specific behavior or if the return value is checked against `Handle`.",
+     "line": 648
+    },
+    {
+     "file": "colossalai/zero/gemini/chunk/chunk.py",
+     "issue_header": "Incorrect usage of all_gather_fp8 with chunked output",
+     "issue_content": "The code creates `cuda_global_chunk_list = torch.chunk(self.cuda_global_chunk, chunks=self.pg_size)` and passes it to `all_gather_fp8`. However, `all_gather_fp8` (and the underlying `_all_gather_fp8`) expects `output_list` to be a list of tensors where each tensor is the destination for the gathered data from a specific rank. `torch.chunk` splits a single tensor into parts, but these parts are views or copies of the *same* original tensor structure, not independent buffers for each rank's contribution in the way `dist.all_gather` expects. Specifically, `dist.all_gather` expects `output_list[i]` to receive data from rank `i`. If `cuda_global_chunk` is the final assembled tensor, chunking it beforehand doesn't provide separate buffers for each rank's data; it just splits the final buffer. The correct approach is to create a list of empty tensors of the same shape as `input_` (or the shard), similar to how it's done in `tensor_bucket.py`. Using `torch.chunk` on the final output tensor is logically incorrect for `all_gather`.",
+     "line": 527
+    },
+    {
+     "file": "colossalai/zero/low_level/low_level_optim.py",
+     "issue_header": "Incorrect usage of all_gather_fp8 with chunked output",
+     "issue_content": "Similar to `chunk.py`, the code does `padded_working_param_list = torch.chunk(padded_working_param, dist.get_world_size(pg))` and passes this to `all_gather_fp8`. This is incorrect because `all_gather` requires a list of pre-allocated tensors to store the gathered results from each rank. `torch.chunk` splits an existing tensor, which is not the correct way to prepare the output list for `all_gather`. It should create a list of new empty tensors, e.g., `[torch.empty_like(param_to_gather) for _ in range(dist.get_world_size(pg))]`.",
+     "line": 583
+    }
+   ],
+   "per_comment": [
+    {
+     "comment_index": 0,
+     "passed": true
+    },
+    {
+     "comment_index": 1,
+     "passed": false
+    }
+   ],
+   "passed": false,
+   "error": null,
+   "cost_usd": 0.0,
+   "usage": {
+    "prompt_tokens": 434119,
+    "completion_tokens": 3083,
+    "total_tokens": 437202
+   },
+   "duration_s": 335.6
+  }
+ ],
+ "comments": [
+  {
+   "instance_id": "matplotlib__matplotlib-30199@b5dfb32",
+   "repo": "matplotlib/matplotlib",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-9802@5c7da54",
+   "repo": "scikit-learn/scikit-learn",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "marimo-team__marimo-4080@8a73f89",
+   "repo": "marimo-team/marimo",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "certbot__certbot-9076@01f570d",
+   "repo": "certbot/certbot",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "mlflow__mlflow-1658@3f53b0b",
+   "repo": "mlflow/mlflow",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-12822@c451532",
+   "repo": "scikit-learn/scikit-learn",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-29442@3a19575",
+   "repo": "scikit-learn/scikit-learn",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "gradio-app__gradio-3275@067f582",
+   "repo": "gradio-app/gradio",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "gradio-app__gradio-3275@067f582",
+   "repo": "gradio-app/gradio",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-15277@594e3a6",
+   "repo": "scikit-learn/scikit-learn",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "geldata__gel-5130@2e5341f",
+   "repo": "geldata/gel",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "geldata__gel-5130@2e5341f",
+   "repo": "geldata/gel",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "networkx__networkx-4134@3b27fe2",
+   "repo": "networkx/networkx",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-26151@c6a1bf5",
+   "repo": "matplotlib/matplotlib",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "networkx__networkx-5305@072b960",
+   "repo": "networkx/networkx",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "networkx__networkx-5305@072b960",
+   "repo": "networkx/networkx",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "python-telegram-bot__python-telegram-bot-3514@d5c0a5c",
+   "repo": "python-telegram-bot/python-telegram-bot",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "geldata__gel-6352@24b4f19",
+   "repo": "geldata/gel",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "optuna__optuna-972@1f4813a",
+   "repo": "optuna/optuna",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "modin-project__modin-4215@69f9652",
+   "repo": "modin-project/modin",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "hpcaitech__ColossalAI-4080@dc82ade",
+   "repo": "hpcaitech/ColossalAI",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-17892@cb25841",
+   "repo": "matplotlib/matplotlib",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "xorbitsai__inference-2079@5ae18b2",
+   "repo": "xorbitsai/inference",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "jina-ai__serve-1256@2f495e3",
+   "repo": "jina-ai/serve",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "huggingface__datasets-586@034c1c0",
+   "repo": "huggingface/datasets",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "networkx__networkx-4602@b2da108",
+   "repo": "networkx/networkx",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-29401@819e167",
+   "repo": "scikit-learn/scikit-learn",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "xorbitsai__inference-1168@f3ada96",
+   "repo": "xorbitsai/inference",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "xorbitsai__inference-1168@f3ada96",
+   "repo": "xorbitsai/inference",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "xorbitsai__inference-1168@f3ada96",
+   "repo": "xorbitsai/inference",
+   "comment_index": 2,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "xorbitsai__inference-1168@f3ada96",
+   "repo": "xorbitsai/inference",
+   "comment_index": 3,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "xorbitsai__inference-1168@f3ada96",
+   "repo": "xorbitsai/inference",
+   "comment_index": 4,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "networkx__networkx-7159@7e65b7d",
+   "repo": "networkx/networkx",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-27172@9f80d55",
+   "repo": "matplotlib/matplotlib",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "scrapy__scrapy-2456@c7bb2fa",
+   "repo": "scrapy/scrapy",
+   "comment_index": 0,
+   "passed": false,
+   "error": false
+  },
+  {
+   "instance_id": "ray-project__ray-49918@04cf1ee",
+   "repo": "ray-project/ray",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "optuna__optuna-1087@4177569",
+   "repo": "optuna/optuna",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-23548@cc5e175",
+   "repo": "scikit-learn/scikit-learn",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "python-telegram-bot__python-telegram-bot-4168@96ca73d",
+   "repo": "python-telegram-bot/python-telegram-bot",
+   "comment_index": 0,
+   "passed": false,
+   "error": true
+  },
+  {
+   "instance_id": "certbot__certbot-7270@65f464e",
+   "repo": "certbot/certbot",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "hpcaitech__ColossalAI-6059@802df11",
+   "repo": "hpcaitech/ColossalAI",
+   "comment_index": 0,
+   "passed": true,
+   "error": false
+  },
+  {
+   "instance_id": "hpcaitech__ColossalAI-6059@802df11",
+   "repo": "hpcaitech/ColossalAI",
+   "comment_index": 1,
+   "passed": false,
+   "error": false
+  }
+ ],
+ "cost_usd": 0.0
+}

@@ -1,0 +1,372 @@
+{
+  "n_repeats": 5,
+  "n_selection_prs": 34,
+  "salts": [
+    "calib-1",
+    "calib-2",
+    "calib-3",
+    "calib-4",
+    "calib-5"
+  ],
+  "summaries": {
+    "calib-1": {
+      "n_prs": 34,
+      "errors": 1,
+      "passed": 9,
+      "comments": 42,
+      "rate_errors_as_failed": 0.21428571428571427,
+      "salt": "calib-1"
+    },
+    "calib-2": {
+      "n_prs": 34,
+      "errors": 1,
+      "passed": 14,
+      "comments": 42,
+      "rate_errors_as_failed": 0.3333333333333333,
+      "salt": "calib-2"
+    },
+    "calib-3": {
+      "n_prs": 34,
+      "errors": 0,
+      "passed": 11,
+      "comments": 42,
+      "rate_errors_as_failed": 0.2619047619047619,
+      "salt": "calib-3"
+    },
+    "calib-4": {
+      "n_prs": 34,
+      "errors": 2,
+      "passed": 11,
+      "comments": 42,
+      "rate_errors_as_failed": 0.2619047619047619,
+      "salt": "calib-4"
+    },
+    "calib-5": {
+      "n_prs": 34,
+      "errors": 0,
+      "passed": 9,
+      "comments": 42,
+      "rate_errors_as_failed": 0.21428571428571427,
+      "salt": "calib-5"
+    }
+  },
+  "primary_pairs": [
+    {
+      "a": "calib-1",
+      "b": "calib-2",
+      "common": 33,
+      "gained": 5,
+      "regressed": 0,
+      "net": 5
+    },
+    {
+      "a": "calib-1",
+      "b": "calib-3",
+      "common": 33,
+      "gained": 2,
+      "regressed": 0,
+      "net": 2
+    },
+    {
+      "a": "calib-1",
+      "b": "calib-4",
+      "common": 32,
+      "gained": 2,
+      "regressed": 0,
+      "net": 2
+    },
+    {
+      "a": "calib-1",
+      "b": "calib-5",
+      "common": 33,
+      "gained": 4,
+      "regressed": 2,
+      "net": 2
+    }
+  ],
+  "all_pairs": [
+    {
+      "a": "calib-1",
+      "b": "calib-2",
+      "common": 33,
+      "gained": 5,
+      "regressed": 0,
+      "net": 5
+    },
+    {
+      "a": "calib-1",
+      "b": "calib-3",
+      "common": 33,
+      "gained": 2,
+      "regressed": 0,
+      "net": 2
+    },
+    {
+      "a": "calib-1",
+      "b": "calib-4",
+      "common": 32,
+      "gained": 2,
+      "regressed": 0,
+      "net": 2
+    },
+    {
+      "a": "calib-1",
+      "b": "calib-5",
+      "common": 33,
+      "gained": 4,
+      "regressed": 2,
+      "net": 2
+    },
+    {
+      "a": "calib-2",
+      "b": "calib-3",
+      "common": 33,
+      "gained": 0,
+      "regressed": 3,
+      "net": -3
+    },
+    {
+      "a": "calib-2",
+      "b": "calib-4",
+      "common": 32,
+      "gained": 1,
+      "regressed": 4,
+      "net": -3
+    },
+    {
+      "a": "calib-2",
+      "b": "calib-5",
+      "common": 33,
+      "gained": 0,
+      "regressed": 3,
+      "net": -3
+    },
+    {
+      "a": "calib-3",
+      "b": "calib-4",
+      "common": 32,
+      "gained": 2,
+      "regressed": 2,
+      "net": 0
+    },
+    {
+      "a": "calib-3",
+      "b": "calib-5",
+      "common": 34,
+      "gained": 2,
+      "regressed": 2,
+      "net": 0
+    },
+    {
+      "a": "calib-4",
+      "b": "calib-5",
+      "common": 32,
+      "gained": 3,
+      "regressed": 3,
+      "net": 0
+    }
+  ],
+  "nets_primary": [
+    5,
+    2,
+    2,
+    2
+  ],
+  "nets_all": [
+    5,
+    2,
+    2,
+    2,
+    -3,
+    -3,
+    -3,
+    0,
+    0,
+    0
+  ],
+  "net_abs_p95_primary": 4.549999999999999,
+  "net_abs_p95_all": 4.099999999999998,
+  "flip_rate": 0.23529411764705882,
+  "n_flipped_prs": 8,
+  "n_valid_prs": 34,
+  "tau": 5,
+  "tau_all_pairs_sensitivity": 5,
+  "gate": {
+    "min_gain": 5,
+    "max_regress": 1
+  },
+  "threshold_rule": "tau = max(1, ceil(95th percentile of |net| vs repeat 1)); all-pairs reported as sensitivity",
+  "per_pr": {
+    "certbot__certbot-7270@65f464e": {
+      "valid": 5,
+      "passed": 3,
+      "flip": true
+    },
+    "certbot__certbot-9076@01f570d": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "geldata__gel-5130@2e5341f": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "geldata__gel-6352@24b4f19": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "gradio-app__gradio-3275@067f582": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "hpcaitech__ColossalAI-4080@dc82ade": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "hpcaitech__ColossalAI-6059@802df11": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "huggingface__datasets-586@034c1c0": {
+      "valid": 5,
+      "passed": 5,
+      "flip": false
+    },
+    "jina-ai__serve-1256@2f495e3": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "marimo-team__marimo-4080@8a73f89": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "matplotlib__matplotlib-17892@cb25841": {
+      "valid": 5,
+      "passed": 3,
+      "flip": true
+    },
+    "matplotlib__matplotlib-26151@c6a1bf5": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "matplotlib__matplotlib-27172@9f80d55": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "matplotlib__matplotlib-30199@b5dfb32": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "mlflow__mlflow-1658@3f53b0b": {
+      "valid": 5,
+      "passed": 5,
+      "flip": false
+    },
+    "modin-project__modin-4215@69f9652": {
+      "valid": 5,
+      "passed": 1,
+      "flip": true
+    },
+    "networkx__networkx-4134@3b27fe2": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "networkx__networkx-4602@b2da108": {
+      "valid": 5,
+      "passed": 4,
+      "flip": true
+    },
+    "networkx__networkx-5305@072b960": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "networkx__networkx-7159@7e65b7d": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "optuna__optuna-1087@4177569": {
+      "valid": 5,
+      "passed": 3,
+      "flip": true
+    },
+    "optuna__optuna-972@1f4813a": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "python-telegram-bot__python-telegram-bot-3514@d5c0a5c": {
+      "valid": 5,
+      "passed": 5,
+      "flip": false
+    },
+    "python-telegram-bot__python-telegram-bot-4168@96ca73d": {
+      "valid": 2,
+      "passed": 0,
+      "flip": false
+    },
+    "ray-project__ray-49918@04cf1ee": {
+      "valid": 5,
+      "passed": 4,
+      "flip": true
+    },
+    "scikit-learn__scikit-learn-12822@c451532": {
+      "valid": 5,
+      "passed": 5,
+      "flip": false
+    },
+    "scikit-learn__scikit-learn-15277@594e3a6": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "scikit-learn__scikit-learn-23548@cc5e175": {
+      "valid": 5,
+      "passed": 2,
+      "flip": true
+    },
+    "scikit-learn__scikit-learn-29401@819e167": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "scikit-learn__scikit-learn-29442@3a19575": {
+      "valid": 4,
+      "passed": 0,
+      "flip": false
+    },
+    "scikit-learn__scikit-learn-9802@5c7da54": {
+      "valid": 5,
+      "passed": 5,
+      "flip": false
+    },
+    "scrapy__scrapy-2456@c7bb2fa": {
+      "valid": 5,
+      "passed": 1,
+      "flip": true
+    },
+    "xorbitsai__inference-1168@f3ada96": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    },
+    "xorbitsai__inference-2079@5ae18b2": {
+      "valid": 5,
+      "passed": 0,
+      "flip": false
+    }
+  },
+  "expected_n": 34
+}
