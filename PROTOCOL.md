@@ -155,8 +155,9 @@ For each non-errored development PR the optimizer sees only:
 Cleaning replaces file paths with `[path]`, removes line references, redacts instance ids, repository and
 file names, and caps text at 600 characters. Before every optimizer call, `assert_clean` rejects the exact
 payload if it contains an instance id, repository name, changed file path, gold comment text, or test code.
-The optimizer never sees diffs, test code, gold comments, per-comment identities, selection results, or test
-results. Selection outcomes are used only by the gate, not as optimizer feedback.
+The optimizer never sees diffs, test code, gold comments, per-comment identities, per-PR selection results, or
+test results. It is told only which edits the gate already rejected (text/op/scope), so it does not repeat them;
+those decisions are used by the gate, not as content feedback about which PRs passed or failed.
 
 ---
 
@@ -212,8 +213,9 @@ Calibration uses only development/selection data and never the test partition.
 
 ### 9.2 Sensitivity: the SkillOpt rule
 
-The original SkillOpt-style rule (`gained >= 1` and `regressed <= 1`, i.e. `--gate-min-gain 1
---gate-max-regress 1`) is **reported as a sensitivity analysis** applied to the same recorded round data:
+The original SkillOpt-style rule is `gained >= 1` and `regressed <= 1`. Note that this is **not** identical to
+`--gate-min-gain 1` under the net rule, which also rejects a round with equal gains and regressions (net 0). The
+SkillOpt rule is **reported as a sensitivity analysis** applied to the same recorded round data:
 which rounds would it have accepted, and what would the resulting libraries have been? It is not the primary
 gate unless calibration yields exactly 1. If the calibrated threshold exceeds 2, the gate is weak relative to
 selection noise; report both the calibrated and SkillOpt results and discuss the power limitation.
@@ -371,6 +373,7 @@ committed, and must contain at least:
 | D4 | The gate uses a **calibrated net-gain threshold** instead of the fixed SkillOpt rule; SkillOpt is reported as sensitivity. | The pilot showed that selection noise can swamp a fixed ±1 rule. | If calibration yields 1, the gates coincide. Both are reported. |
 | D5 | **Four test-partition PRs have JavaScript tests**; they are retained and scored as released. | The harness and images are used unmodified; no JS-specific work was completed in time. | These PRs may fail for environment reasons; errors count as failed in the primary metric, and complete-case results are reported as sensitivity. |
 | D6 | **Code Review Bench (CRB) as an external test set was dropped.** | Time and budget were spent on stabilising the c-CRAB harness and the evolution loop; CRB would add a second, differently-scored pipeline. | External validity rests on the repository-disjoint test partition only. Stated as a limitation. |
+| D13 | The optimizer is shown the edits the gate previously rejected (text/op/scope only), so it does not repeat them. | The pilot showed repeated identical proposals when the feedback was unchanged; the rejected-edit list is a within-condition efficiency mechanism, applied identically to both arms. | It does not reveal per-PR selection results or pass/fail counts; §7 is amended to allow only this narrow use. |
 | D12 | Three baseline PRs (`sympy-11818`, `ansible-44951`, `optuna-1087`) were blocked by an ASU WAF 403 on the git-diff header; the same PR passes with the header metadata stripped. | The reviewer retries once with `clean_diff` (file name + hunks, no `diff --git/index/---/+++`). | The reviewer sees the same changed lines and file paths; only git metadata is removed. The fallback is used only after a 403, so all earlier cached reviews remain valid. |
 | D11 | `tenacity` was missing from the project venv, so litellm's retry path failed on 3 PRs; `pip install -e .` also timed out on 5 large pandas images. | `tenacity` is now a pinned dependency; a pip timeout is a setup warning and the tests decide. The 10 errored PRs are retried with the 113 successful draws cached. | Only setup handling changed; successful scoring is untouched. The retry is reported as part of the single baseline. |
 | D10 | The first clean baseline (2026-11-24) was aborted after 10/89 development PRs by a transient ASU 403 `unrecognized_model`; a direct endpoint check immediately afterwards succeeded. | The repair path now retries a 403 `unrecognized_model` twice with backoff before stopping, like a rate limit. The completed 10 PRs are reused under the same salt; the run resumes. | Only successful draws are reused; the retry changes how failures are handled, not how a completed review/repair is scored. The run is reported as one baseline with the infrastructure event noted. |

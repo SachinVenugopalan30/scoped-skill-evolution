@@ -418,11 +418,17 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None, rej
         forbidden += forbidden_for(inst_by_id[iid], r.get("findings") or [])[1]
     feedback = build_feedback(dev, library, condition, rejected)
     has_evidence = any(r.get("passed") is not None for r in dev)
-    edits = propose_edits(library, feedback, condition, forbidden, round_no=round_no) if has_evidence else []
+    opt_err = None
+    try:
+        edits = propose_edits(library, feedback, condition, forbidden, round_no=round_no) if has_evidence else []
+    except ValueError as e:
+        # Sanitizer rejected the optimizer payload (e.g. the reviewer quoted gold text). Skip this round's
+        # edit and record why; a safety check must never kill a multi-hour run.
+        edits, opt_err = [], str(e)[:300]
     cand = apply_edits(library, edits)
     pr_records = [{k: r.get(k) for k in ("instance_id", "repo", "pr_type", "skill_ids", "findings", "passed", "error",
                                          "cost_usd", "usage", "duration_s")} for r in dev]
-    rec = {"condition": condition, "round": round_no, "edits": edits,
+    rec = {"condition": condition, "round": round_no, "gated": gated, "edits": edits, "optimizer_error": opt_err,
            "dev_passed": {r["instance_id"]: r["passed"] for r in dev if r.get("instance_id")},
            "dev": summarize(dev), "prs": pr_records,
            "library_before": [dict(s) for s in library],
@@ -430,7 +436,8 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None, rej
            "salt": salt, "harness_version": harness.HARNESS_VERSION,
            "model": reviewer.MODEL, "threshold": {"min_gain": min_gain, "max_regress": max_regress}}
     if not edits:
-        rec.update(accept=False, gained=0, regressed=0, net=0, excluded=[], note="no edits")
+        rec.update(accept=False, gained=0, regressed=0, net=0, excluded=[],
+                   note="optimizer payload rejected" if opt_err else "no edits")
         final = library
     elif not gated:
         rec.update(accept=True, gained=None, regressed=None, net=None, excluded=[], note="ungated: selection not evaluated")
@@ -441,7 +448,9 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None, rej
         new = evaluate(sel_prs, cand, condition, salt=salt)
         rec.update(gate({r["instance_id"]: r["passed"] for r in base if r.get("instance_id")},
                         {r["instance_id"]: r["passed"] for r in new if r.get("instance_id")}, min_gain, max_regress))
-        rec.update(sel_base=summarize(base), sel_new=summarize(new))
+        rec.update(sel_base=summarize(base), sel_new=summarize(new),
+                   sel_base_passed={r["instance_id"]: r["passed"] for r in base if r.get("instance_id")},
+                   sel_new_passed={r["instance_id"]: r["passed"] for r in new if r.get("instance_id")})
         final = cand if rec["accept"] else library
     rec["library_after"] = [dict(s) for s in final]
     rec["library_sha256_after"] = library_sha256(final)
@@ -524,9 +533,11 @@ def sample(partition, n, seed, allow_test=False):
     return out
 
 
-def score_library(partition, condition, library=None, n=None, seed=0, salt=None, allow_test=False, allow_overwrite=False):
+def score_library(partition, condition, library=None, n=None, seed=0, salt=None, allow_test=False, allow_overwrite=False,
+                  resume=False):
     """Score one frozen library on a partition. On test, FROZEN.json must pin the code manifest, the library hash and the
-    exact test id list; the output is written once (refuse to overwrite without allow_overwrite)."""
+    exact test id list; the final output is written once. A stopped run is written to results/partial/ and can be
+    completed with --resume using the same salt/library; partials never match the results/test_*.json glob."""
     if partition == "test" and not allow_test:
         raise ValueError("locked test partition: pass --unlock-test only after freezing")
     frozen = _require_frozen() if partition == "test" else None
@@ -549,27 +560,64 @@ def score_library(partition, condition, library=None, n=None, seed=0, salt=None,
         frozen_ids = frozen.get("test_ids")
         if not isinstance(frozen_ids, list) or sorted(frozen_ids) != sorted(ids):
             raise RuntimeError("FROZEN.json test_ids do not match the eligible test partition")
-        if not salt:
-            raise SystemExit("--salt is required for the locked test pass so an interrupted run resumes without re-rolling")
     out_path = ROOT / f"results/{partition}_{condition}.json"
-    if out_path.exists() and not allow_overwrite:
-        raise SystemExit(f"{out_path} already exists: one scoring pass only (use --allow-overwrite to deliberately re-run)")
-    salt = salt or uuid.uuid4().hex
+    partial_path = ROOT / f"results/partial/{partition}_{condition}.json"
+    if out_path.exists():
+        if not allow_overwrite:
+            raise SystemExit(f"{out_path} already exists: one scoring pass only (use --allow-overwrite to deliberately re-run)")
+        out_path.unlink()
+    partial = None
+    if partial_path.exists():
+        if allow_overwrite:
+            partial_path.unlink()
+        elif not resume:
+            raise SystemExit(f"{partial_path} exists: complete it with --resume (same --salt/--library) or remove it")
+        else:
+            partial = json.loads(partial_path.read_text())
+            if partial.get("partition") != partition or partial.get("condition") != condition:
+                raise SystemExit(f"{partial_path}: partition/condition mismatch; refusing --resume")
+            if partial.get("library_sha256") != library_sha256(lib):
+                raise SystemExit(f"{partial_path}: library hash differs from the current snapshot; refusing --resume")
+            if sorted(partial.get("test_ids") or []) != sorted(ids):
+                raise SystemExit(f"{partial_path}: test_ids differ from the current eligible set; refusing --resume")
+            if salt and partial.get("salt") != salt:
+                raise SystemExit(f"{partial_path}: salt {partial.get('salt')!r} != requested {salt!r}; refusing --resume")
+            salt = salt or partial.get("salt")
+            if not salt:
+                raise SystemExit(f"{partial_path}: no recorded salt; cannot resume reproducibly")
+    if not salt:
+        if partition == "test":
+            raise SystemExit("--salt is required for the locked test pass so an interrupted run resumes without re-rolling")
+        salt = uuid.uuid4().hex
+    res = [r for r in (partial or {}).get("prs", []) if r.get("instance_id") in set(ids)]
+    done = {r["instance_id"] for r in res}
+    missing = [i for i in ids if i not in done]
     inst = harness.instances()
-    res = []
+    stopped = None
     try:
-        evaluate([inst[i] for i in ids], lib, condition, res, salt=salt)
+        if missing:
+            evaluate([inst[i] for i in missing], lib, condition, res, salt=salt)
     except (harness.StopRun, KeyboardInterrupt) as ex:
+        stopped = ex
         print("STOPPED:", repr(ex) if isinstance(ex, KeyboardInterrupt) else ex)
+    order = {i: k for k, i in enumerate(ids)}
+    res.sort(key=lambda r: order.get(r.get("instance_id"), len(order)))
     summary = summarize(res)
+    incomplete = stopped is not None or len(res) < len(ids)
     out = {"condition": condition, "partition": partition, "seed": seed, "salt": salt,
-           "n_requested": len(ids), "n_done": len(res), "library": lib, "library_sha256": library_sha256(lib),
+           "n_requested": len(ids), "n_done": len(res), "partial": incomplete, "test_ids": ids,
+           "library": lib, "library_sha256": library_sha256(lib),
            "code_sha": _code_sha(), "harness_version": harness.HARNESS_VERSION, "model": reviewer.MODEL,
            "excluded": {k: {"n": len(v), "ids": v} for k, v in eligible(partition, allow_test=allow_test)[1].items()},
            "summary": summary, "tokens": summary["tokens"], "duration_s": summary["duration_s"],
            "prs": res, "comments": comment_rows(res)}
-    harness.write_json(out_path, out)
-    print(f"{condition} {partition}: {json.dumps(summary)} tokens={out['tokens']} -> {out_path}")
+    target = partial_path if incomplete else out_path
+    harness.write_json(target, out)
+    if not incomplete:
+        partial_path.unlink(missing_ok=True)
+    print(f"{condition} {partition}: {json.dumps(summary)} tokens={out['tokens']} -> {target}")
+    if incomplete:
+        print(f"INCOMPLETE ({len(res)}/{len(ids)}); resume with the same --salt/--library")
     return out
 
 
@@ -656,7 +704,7 @@ def main():
     inst = harness.instances()
     try:
         if a.cmd == "score":
-            score_library(a.partition, a.condition, a.library, a.n, a.seed, salt, a.unlock_test, a.allow_overwrite)
+            score_library(a.partition, a.condition, a.library, a.n, a.seed, salt, a.unlock_test, a.allow_overwrite, a.resume)
         elif a.cmd == "static":
             path = ROOT / f"results/static_{a.partition}.json"
             if a.partition == "test" and path.exists() and not a.allow_overwrite:
