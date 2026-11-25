@@ -12,5 +12,5 @@ while [ ! -f results/calibration/summary.json ]; do
 done
 echo "=== calibration summary detected $(date) ===" >> runs/logs/phase_b_auto.log
 sleep 45  # let the calibration script restore results/static_selection.json and exit
-uv run python run_phase_b.py >> runs/logs/phase_b_auto.log 2>&1
+uv run python run_phase_b.py --tau 1 >> runs/logs/phase_b_auto.log 2>&1  # PROTOCOL.md A1
 echo "=== phase_b watcher end $(date) ===" >> runs/logs/phase_b_auto.log

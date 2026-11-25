@@ -397,6 +397,42 @@ Evidence used (must not be test outcomes unless after freeze, in which case both
 
 No amendments have been made at pre-registration time (2026-11-23).
 
+### A1 — 2026-11-25 (before freeze, before any evolution round)
+
+**Decision changed.**
+
+1. The operating gate for Phase B (`global` and `scoped`) is `gate_min_gain = 1`, `gate_max_regress = 1`
+   (`run_phase_b.py --tau 1`), instead of the calibrated τ of §9.1.
+2. The calibrated τ is still computed exactly as in §9.1 from all 5 A/A repeats, recorded in
+   `results/calibration/summary.json` and `results/FROZEN.json`, and reported. For every evaluated round, the
+   verdict the calibrated gate would have given (`net >= τ and regressed <= 1`) is computed from the recorded
+   `gained` / `regressed` and reported next to the τ=1 verdict. The roles in §9.2 are swapped: τ=1 is the
+   operating gate, and the calibrated τ is the sensitivity analysis.
+3. If the calibrated gate would have rejected round 1 of a condition, the frozen library under the
+   calibrated gate is the empty library. That arm's locked-test result is then the `static` test result, and
+   it is not run separately. Later rounds are not re-simulated: once an edit is accepted at τ=1, the
+   optimizer's feedback differs from what a rejection would have given.
+4. The optional `scoped` ungated ablation (§4, §10) is dropped.
+
+**Reason.** From three A/A repeats (calib-1..3), the preliminary calibrated τ is already 5: the nets are +5,
++2 and −3 against each other, and −1, +3 and +1 against the frozen baseline. Only about 5 of the 34
+selection PRs change outcome between repeats: 7 pass every time and 22 never pass. Within a pair of repeats
+the flips go almost entirely one way, so the noise is mostly a shift of the whole run. At τ ≥ 5 a single
+edit would have to beat the whole measured noise band. Both conditions would reject every edit, stop after 2
+rounds, and freeze empty libraries, so the primary contrast would be static vs static and the RQ would go
+untested. τ=1 lets the libraries change, so the scoped-vs-global organization contrast can be measured.
+
+**Known cost.** τ=1 is weak: 2 of 3 null repeats would pass it against the frozen baseline. H1 is therefore
+a test of skill *organization* under a permissive gate, not under a gate that filters out noise. H2 (net gain
+and regressions per accepted edit) is reported with the A/A noise band and is not read as evidence of edit
+quality on its own. Since the τ=1 gate is already close to ungated, the ungated ablation would add little.
+Both limitations are stated in the report.
+
+**Evidence used.** Only the A/A selection repeats (`results/calibration/calib_1..3.json`) and the frozen
+static selection baseline (`results/calibration/baseline_selection.json`). No test-partition data and no
+evolution rounds. Calibration repeats 4 and 5 were still running when this was written. They do not change
+this decision, but they do set the final calibrated τ that item 2 reports.
+
 ---
 
 ## 18. Approximate timeline
