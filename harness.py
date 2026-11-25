@@ -427,7 +427,9 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         if lang == "python":
             pip0 = session.run_command("pip install -e . --no-deps --quiet", timeout=PIP_TIMEOUT)
             if getattr(pip0, "timed_out", False):
-                return done(error=f"pip install timed out ({PIP_TIMEOUT}s) before the agent started")
+                # The image already has the repository installed editable. A slow reinstall is setup, not a scored
+                # failure; let the agent run and let the tests decide.
+                print(f"pip install timed out ({PIP_TIMEOUT}s) on {iid}; continuing")
         prompt = build_tool_prompt(findings, inst["commit_to_review"]["patch_to_review"], inst["repo"])  # vendor prompt, unchanged
         r = invoke_claude(session, prompt, model, mark)  # sets `invoked` right before the Claude run; earlier failures cost $0
         write_json(RAW / f"{iid.replace('/', '__')}_{uuid.uuid4().hex[:8]}.json",
@@ -469,7 +471,7 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         if lang == "python":
             pip1 = session.run_command("pip install -e . --no-deps --quiet", timeout=PIP_TIMEOUT)
             if getattr(pip1, "timed_out", False):
-                return done(error=f"pip install timed out ({PIP_TIMEOUT}s) before tests")
+                print(f"pip install timed out ({PIP_TIMEOUT}s) on {iid} before tests; continuing")
         timed_out_test = False
         for pc, (ci, i, e) in zip(res["per_comment"], tests):
             ok, out = verify_with_test(session, e["test_code"], f"test_review_comment_{i}{EXT.get(lang, '.py')}", lang)

@@ -7,4 +7,5 @@ dependencies = [
     "numpy",
     "matplotlib",
     "python-dotenv",
+    "tenacity>=9.2.1",
 ]
