@@ -10,6 +10,7 @@ import data, harness, reviewer
 ROOT = data.ROOT
 SCOPES = ("global", "bug_fix", "feature", "other")
 MAX_EDITS, MAX_WORDS = 1, 60
+LAST_OPT_RAW = None  # raw text of the latest optimizer reply, logged with the round record
 MAX_SKILLS = 6            # retrieved skills per PR (hard cap, before the token budget)
 RETRIEVAL_BUDGET = 400    # tokens of skill text injected into one review prompt
 OPT_RESERVE_USD = 0.3
@@ -267,7 +268,9 @@ def propose_edits(library, feedback, condition, forbidden=(), model=reviewer.MOD
     label = f"{condition}:r{round_no}" if round_no is not None else "round"
     harness.record("optimizer", label, reviewer.cost_of(resp), tokens=reviewer._usage_delta(resp),
                    duration_s=round(time.time() - t0, 1), model=model)
-    return parse_edits(resp.choices[0].message.content or "", library, condition)
+    global LAST_OPT_RAW
+    LAST_OPT_RAW = resp.choices[0].message.content or ""
+    return parse_edits(LAST_OPT_RAW, library, condition)
 
 
 # ---------- gate ----------
@@ -418,7 +421,8 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None, rej
         forbidden += forbidden_for(inst_by_id[iid], r.get("findings") or [])[1]
     feedback = build_feedback(dev, library, condition, rejected)
     has_evidence = any(r.get("passed") is not None for r in dev)
-    opt_err = None
+    global LAST_OPT_RAW
+    opt_err, LAST_OPT_RAW = None, None
     try:
         edits = propose_edits(library, feedback, condition, forbidden, round_no=round_no) if has_evidence else []
     except ValueError as e:
@@ -429,6 +433,7 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None, rej
     pr_records = [{k: r.get(k) for k in ("instance_id", "repo", "pr_type", "skill_ids", "findings", "passed", "error",
                                          "cost_usd", "usage", "duration_s")} for r in dev]
     rec = {"condition": condition, "round": round_no, "gated": gated, "edits": edits, "optimizer_error": opt_err,
+           "optimizer_raw": LAST_OPT_RAW,
            "dev_passed": {r["instance_id"]: r["passed"] for r in dev if r.get("instance_id")},
            "dev": summarize(dev), "prs": pr_records,
            "library_before": [dict(s) for s in library],
@@ -734,7 +739,7 @@ def main():
                 lib, start = normalize_library(snap), snap_n + 1
                 rejected = rejected_from_log(a.condition, snap_n)
             else:
-                lib, start, rejected = [], 0, []
+                lib, start, rejected = [], 1, []  # round_0 is the empty starting snapshot, not a round
             harness.append_json(ROOT / f"results/evolution/{a.condition}.jsonl", {
                 "run_id": run_id, "condition": a.condition, "seed": a.seed, "gated": not a.no_gate,
                 "dev_ids": dev_ids, "sel_ids": sel_ids, "resumed_from": snap_n, "salt": salt,
@@ -752,7 +757,7 @@ def main():
                     ran = r
                     if rec["accept"]:
                         consecutive = 0
-                    elif rec["edits"]:
+                    else:  # PROTOCOL §8: an empty edit list is recorded as a rejection, so it counts toward the stop rule
                         rejected += [{**ed, "outcome": "rejected"} for ed in rec["edits"]]
                         consecutive += 1
                     print(f"round {r}: accept={rec['accept']} gained={rec['gained']} regressed={rec['regressed']} "

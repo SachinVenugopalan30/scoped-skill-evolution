@@ -433,6 +433,36 @@ static selection baseline (`results/calibration/baseline_selection.json`). No te
 evolution rounds. Calibration repeats 4 and 5 were still running when this was written. They do not change
 this decision, but they do set the final calibrated τ that item 2 reports.
 
+### A2 — 2026-11-25 (before freeze; first Phase B attempt discarded)
+
+**Decision changed.** None of the pre-registered decisions change. This amendment records four implementation
+bugs found in the first Phase B attempt (started 2026-11-25 14:33), the fixes, and the discarded attempt.
+
+1. **Round numbering.** A fresh run started at round 0, so `--rounds 5` evaluated 6 rounds (0–5). Fresh runs now
+   start at round 1; `round_0` remains the empty starting snapshot.
+2. **Stop rule.** A round where the optimizer returned no valid edit did not count toward
+   `--stop-after-rejections`, contrary to §8 ("an empty edit list ... is recorded as a rejection"). The scoped
+   attempt therefore ran rounds 1–5 with no edits instead of stopping after round 2. Empty-edit rounds now count.
+3. **Optimizer reply not logged.** Rounds 1–5 of the scoped attempt parsed to no edits, but the raw reply was
+   not stored, so the cause cannot be recovered. A reconstructed call on the same feedback returned a valid
+   `add`. Every round record now stores `optimizer_raw`.
+4. **WAF-blocked repair stopped the whole run.** The global attempt stopped in round 1 when ASU returned
+   `403 ASU error page` three times over 3 minutes for one selection PR (`hpcaitech__ColossalAI-4080`). That PR
+   had repaired fine in all 6 earlier runs. It failed only with the global candidate's findings, and the endpoint
+   answered other calls straight afterwards, so this was the ASU WAF blocking one repair prompt (compare D12 for
+   the reviewer), not an outage. Now, when that 403 persists through the retries, the harness makes one plain
+   call to the endpoint. If the endpoint answers, the PR is an infrastructure error (`passed = None`, excluded
+   from the gate, failed in the primary metric, not cached). If it does not, the run stops as before. The Phase
+   B runner also treats an `evolve.py` that printed `STOPPED:` as a failure and does not start the next
+   condition. Before this fix it went on to `scoped` and reported "OK".
+
+**Discarded attempt.** Its logs and snapshots are archived in `results/phase_b_invalid_2026-11-25/` and are not
+results. Phase B restarts from round 1 for both conditions, with the same flags and salt. One observation from the
+archive, reported only as an anecdote: the single scoped candidate that was evaluated (one global `add`) gained 0
+and regressed 3 selection PRs. That is within the A/A noise band of §9.1.
+
+**Evidence used.** Phase B run logs and round records on development and selection only. No test-partition data.
+
 ---
 
 ## 18. Approximate timeline

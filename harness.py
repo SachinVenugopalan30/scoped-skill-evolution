@@ -233,6 +233,8 @@ def cached(kind, k, fn):
         old = json.loads(p.read_text())
         return {**old, "cached": True, "orig_cost_usd": old.get("cost_usd"), "cost_usd": 0.0}
     res = fn()
+    if res.get("content_blocked"):  # a WAF block may lift later; never freeze it into the cache
+        return res
     if not res.get("error") or res.get("attempted") or res.get("cost_usd", 0) > 0:
         write_json(p, res)
     return res
@@ -330,6 +332,17 @@ FATAL_RE = re.compile(r"invalid x-api-key|invalid api key|authentication_error|a
 RATE_LIMIT_RE = re.compile(r"rate_limit_error|usage limit reached|too many requests|api error: ?429", re.I)
 TRANSIENT_RE = re.compile(r"unrecognized_model|model not found|temporarily unavailable|asu error page|api error: ?403", re.I)
 RATE_LIMIT_SLEEPS = (60, 120)  # seconds before the 1st and 2nd retry (rate limit or transient model routing)
+WAF_RE = re.compile(r"asu error page", re.I)
+
+
+def endpoint_ok():
+    """One tiny direct call to the hosted model. True iff it answers, i.e. the endpoint itself is up."""
+    try:
+        reviewer.litellm.completion(model=reviewer.MODEL, messages=[{"role": "user", "content": "Reply with OK."}],
+                                    max_tokens=5, temperature=0, **reviewer.llm_kwargs())
+        return True
+    except Exception:
+        return False
 
 
 def parse_claude(stdout):
@@ -537,6 +550,13 @@ def repair_pr(inst, findings, model=REPAIR_MODEL, fresh=False, salt=None):
             if r.get("error") and (r.get("rate_limited") or r.get("transient")
                                    or RATE_LIMIT_RE.search(str(r["error"])) or TRANSIENT_RE.search(str(r["error"]))):
                 if rate_retries >= len(RATE_LIMIT_SLEEPS):
+                    if WAF_RE.search(str(r["error"])) and endpoint_ok():
+                        # The endpoint answers a plain request, so this is ASU's WAF blocking this PR's repair
+                        # prompt, not an outage: an infrastructure error for this PR (excluded from the gate,
+                        # failed in the primary metric), never a reason to stop the whole run.
+                        print(f"repair prompt blocked by endpoint WAF on {inst['instance_id']}; recording an infra error")
+                        return {**r, "error": f"blocked by endpoint WAF: {scrub(str(r['error']))[:300]}",
+                                "content_blocked": True}
                     raise FatalRunError(f"transient/rate-limited failure on {inst['instance_id']} after "
                                         f"{rate_retries} retries: {scrub(str(r['error']))[:300]}")
                 delay = RATE_LIMIT_SLEEPS[rate_retries]

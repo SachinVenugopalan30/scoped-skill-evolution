@@ -436,7 +436,9 @@ def main(argv=None):
             rounds = rounds_ran or last_round
             results.append({"condition": condition, "rc": rc, "rounds": rounds,
                             "last_round": last_round, "stop": stop})
-            if rc != 0:
+            # evolve.py prints STOPPED: and exits 0 when a round aborts (endpoint, budget, Ctrl-C); that is a failure,
+            # and the next condition must not start until this one is resumed and finished.
+            if rc != 0 or (stop or "").startswith("STOPPED:"):
                 failed = {"condition": condition, "rc": rc, "rounds": rounds, "last_round": last_round}
                 break
     except KeyboardInterrupt:
@@ -458,7 +460,7 @@ def main(argv=None):
         say(f"  [{r['condition']}] rc={r['rc']} rounds={r['rounds']}/{args.rounds}"
             + (f" last_round={r['last_round']}" if r["last_round"] else "") + f"  {status}")
     if failed:
-        say(f"  overall: FAILED — {failed['condition']} exited {failed['rc']} "
+        say(f"  overall: FAILED — {failed['condition']} exited {failed['rc']} (stopped early if rc=0) "
             f"(last round {failed['last_round'] or 'not started'}); later conditions were not run")
         say("  fix the failure, then re-run with --resume")
         return 1

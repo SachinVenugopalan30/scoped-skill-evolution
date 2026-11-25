@@ -428,6 +428,7 @@ def test_sample_scrub_optimizer():
     with tmp_state(), mock.patch.object(litellm, "completion", lambda **kw: fake_resp(raw)), mock.patch.object(litellm, "completion_cost", return_value=0.02):
         out = evolve.propose_edits(lib, [{"pr_type": "other", "findings": [], "passed": 0, "total": 1}], "global", ["LEAKME"])
         assert len(out) == 1 and harness.spent() == 0.02
+        assert evolve.LAST_OPT_RAW == raw  # the raw reply is kept for the round record, even when edits are dropped
         try:
             evolve.propose_edits(lib, [{"x": "LEAKME"}], "global", ["LEAKME"]); raise SystemExit("leak allowed")
         except ValueError:
@@ -1053,6 +1054,48 @@ def test_score_library_guard():
                 assert "already exists" in str(e)
 
 
+def test_waf_blocked_repair():
+    """A repair the ASU WAF keeps blocking, while the endpoint answers, is an infra error for that PR (not cached),
+    never a whole-run stop. If the endpoint is down too, the run still stops."""
+    f = [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+    blocked = {"per_comment": [{"comment_index": 0, "passed": None}], "cost_usd": 0.0, "attempted": True,
+               "error": "claude failed (rc=1, subtype=success): Failed to authenticate. API Error: 403 ASU error page"}
+    calls = []
+    with tmp_state(), mock.patch.object(harness, "run_repair", lambda *a, **k: calls.append(1) or dict(blocked)), \
+            mock.patch.object(time, "sleep", lambda s: None):
+        with mock.patch.object(harness, "endpoint_ok", lambda: True):
+            r = harness.repair_pr(INST, f, salt="s")
+            assert r["content_blocked"] and "WAF" in r["error"] and harness.pr_passed(r) is None
+            harness.repair_pr(INST, f, salt="s")
+            assert len(calls) == 2 * (1 + len(harness.RATE_LIMIT_SLEEPS))  # not served from the cache
+        with mock.patch.object(harness, "endpoint_ok", lambda: False):
+            try:
+                harness.repair_pr(INST, f, salt="s"); raise SystemExit("an endpoint outage did not stop the run")
+            except harness.FatalRunError:
+                pass
+
+
+def test_evolve_loop_rounds():
+    """A fresh run numbers rounds from 1, and empty-edit rounds count toward --stop-after-rejections (PROTOCOL §8)."""
+    seen = []
+    def fake_round(condition, lib, dev, sel, gated, run_id, rejected, mg, mr, salt, r):
+        seen.append(r)
+        return lib, {"accept": False, "edits": [], "gained": 0, "regressed": 0, "net": 0,
+                     "dev": {"pass_rate_errors_as_failed": 0.0, "n_errors": 0}, "cost_usd": 0.0}
+    argv = ["evolve.py", "evolve", "--condition", "scoped", "--dev-n", "2", "--sel-n", "2", "--rounds", "5",
+            "--stop-after-rejections", "2", "--salt", "t"]
+    ids = {p: evolve.sample(p, 2, 0) for p in ("development", "selection")}
+    with tmp_state() as d, mock.patch.object(evolve, "ROOT", d), mock.patch.object(sys, "argv", argv), \
+            mock.patch.object(evolve, "sample", lambda p, n, seed, allow_test=False: ids[p]), \
+            mock.patch.object(evolve, "eligible", lambda p, allow_test=False: ({}, {})), \
+            mock.patch.object(harness, "setup", lambda: None), mock.patch.object(harness, "start_proxy", lambda: None), \
+            mock.patch.object(harness, "cleanup_images", lambda: None), mock.patch.object(evolve, "run_round", fake_round):
+        evolve.main()
+        log = [json.loads(l) for l in (d / "results/evolution/scoped.jsonl").read_text().splitlines()]
+    assert seen == [1, 2], seen
+    assert log[-1]["stopped"] == "stop-after-rejections" and log[-1]["round"] == 2
+
+
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
     test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_ledger_tokens(); test_reviewer(); test_review_waf_fallback(); test_cache()
@@ -1060,4 +1103,5 @@ if __name__ == "__main__":
     test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops()
     test_guards_and_summary(); test_image_cleanup(); test_proxy_hook(); test_eligible_test_guard()
     test_fresh_cache(); test_summarize_tokens(); test_round_logging(); test_score_library_guard()
+    test_waf_blocked_repair(); test_evolve_loop_rounds()
     print("all tests passed")
