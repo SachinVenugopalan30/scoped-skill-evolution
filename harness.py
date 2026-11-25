@@ -66,7 +66,12 @@ NO_IMAGE = {"python__cpython-104029@f78e70e", "PostHog__posthog-7569@db32271", "
 EXT = {"python": ".py", "javascript": ".test.js", "typescript": ".test.ts", "go": "_test.go"}
 CLAUDE_BIN, PROMPT_PATH, KEY_PATH = "/home/agent/.local/bin/claude", "/home/agent/prompt.txt", "/home/agent/.anthropic_env"
 PROXY_PORT, PROXY_TOKEN, _proxy = 4000, "unset", None  # token is random per run; only the local proxy accepts it
-PROXY_URL_IN_CONTAINER = f"http://host.docker.internal:{PROXY_PORT}"  # Docker Desktop; on Linux add --add-host
+# Docker Desktop (macOS) forwards host.docker.internal to the host's loopback, so the proxy can stay on 127.0.0.1.
+# Linux has no such alias: bind the proxy on the docker0 gateway, which bridge containers reach directly and which
+# is not exposed publicly. SSE_PROXY_HOST overrides the address if the bridge uses another subnet.
+PROXY_HOST = os.environ.get("SSE_PROXY_HOST") or ("127.0.0.1" if sys.platform == "darwin" else "172.17.0.1")
+PROXY_URL_IN_CONTAINER = (f"http://host.docker.internal:{PROXY_PORT}" if PROXY_HOST == "127.0.0.1"
+                          else f"http://{PROXY_HOST}:{PROXY_PORT}")
 
 
 # ---------- secrets ----------
@@ -122,14 +127,14 @@ def start_proxy():
     PROXY_TOKEN = "sk-" + secrets.token_hex(12)
     env = {**os.environ, "VOYAGER_API_KEY": get_key(), "LITELLM_MASTER_KEY": PROXY_TOKEN, "PYTHONPATH": str(ROOT)}
     exe = Path(sys.executable).parent / "litellm"
-    _proxy = subprocess.Popen([str(exe), "--config", str(cfg), "--host", "127.0.0.1", "--port", str(PROXY_PORT)], env=env,
+    _proxy = subprocess.Popen([str(exe), "--config", str(cfg), "--host", PROXY_HOST, "--port", str(PROXY_PORT)], env=env,
                               stdout=open(ROOT / "runs/proxy.log", "w"), stderr=subprocess.STDOUT)
     atexit.register(_stop_proxy)
     for _ in range(90):
         if _proxy.poll() is not None:
             raise SystemExit(f"proxy exited early (port {PROXY_PORT} busy?); see runs/proxy.log")
         try:
-            if urllib.request.urlopen(f"http://127.0.0.1:{PROXY_PORT}/health/liveliness", timeout=2).status == 200:
+            if urllib.request.urlopen(f"http://{PROXY_HOST}:{PROXY_PORT}/health/liveliness", timeout=2).status == 200:
                 return
         except Exception:
             time.sleep(1)
