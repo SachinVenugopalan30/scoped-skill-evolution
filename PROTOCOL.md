@@ -338,6 +338,9 @@ committed, and must contain at least:
 * Each Claude run has a 1200-second timeout (`REPAIR_TIMEOUT`); a timed-out repair is an error (`passed = None`),
   excluded from the gate and failed in the primary metric. `pip install -e .` has a 300-second timeout
   (`PIP_TIMEOUT`); a timeout before the agent starts is an unbilled infra error and is retried once.
+* Transient endpoint failures are retried twice with 60/120 s backoff before the run stops: rate limits (429),
+  and a 403 `unrecognized_model` from the ASU routing layer. A genuinely invalid key (401/`invalid api key`)
+  still stops the run at once. This was added after a transient 403 aborted the first clean baseline at 10/89 PRs.
 * `SSE_CAP_USD` optionally sets a nominal spend cap (`CAP_USD` is uncapped by default because the model is
   free). It is a safety valve, not a cost measurement: a run stops cleanly when the next paid call would
   exceed the cap.
@@ -360,6 +363,7 @@ committed, and must contain at least:
 | D4 | The gate uses a **calibrated net-gain threshold** instead of the fixed SkillOpt rule; SkillOpt is reported as sensitivity. | The pilot showed that selection noise can swamp a fixed ±1 rule. | If calibration yields 1, the gates coincide. Both are reported. |
 | D5 | **Four test-partition PRs have JavaScript tests**; they are retained and scored as released. | The harness and images are used unmodified; no JS-specific work was completed in time. | These PRs may fail for environment reasons; errors count as failed in the primary metric, and complete-case results are reported as sensitivity. |
 | D6 | **Code Review Bench (CRB) as an external test set was dropped.** | Time and budget were spent on stabilising the c-CRAB harness and the evolution loop; CRB would add a second, differently-scored pipeline. | External validity rests on the repository-disjoint test partition only. Stated as a limitation. |
+| D10 | The first clean baseline (2026-11-24) was aborted after 10/89 development PRs by a transient ASU 403 `unrecognized_model`; a direct endpoint check immediately afterwards succeeded. | The repair path now retries a 403 `unrecognized_model` twice with backoff before stopping, like a rate limit. The completed 10 PRs are reused under the same salt; the run resumes. | Only successful draws are reused; the retry changes how failures are handled, not how a completed review/repair is scored. The run is reported as one baseline with the infrastructure event noted. |
 | D9 | The first overnight static baseline (2026-11-23/24) filled the Docker disk (image retention was bounded only at run end); 21/89 development and 33/34 selection repairs failed, mostly from Docker/ENOSPC. | The harness now removes each image after its repair and refuses to start below 30 GB free. The affected baselines were re-run; the invalid selection run is not used. | Infrastructure failures are counted as failed in the primary metric and excluded from the gate; the re-run and complete-case results are reported. This is exactly the failure mode the harness now guards against. |
 | D7 | The **pilot used sampling prefixes (dev 12, selection 8)** and dollar costs; final runs use full eligible partitions and a **token/duration ledger**. | The pilot was a feasibility check, not a result. | Pilot outputs are archived in `results/qwen_pilot/` and are not final results. |
 | D8 | Cached dollar figures are nominal (prices are 0). | ASU hosting is free; token and duration records are the real resource ledger. | No dollar-based conclusions; compute is reported in tokens and seconds. |

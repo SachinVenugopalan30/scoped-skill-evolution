@@ -498,6 +498,10 @@ def test_repair_failures():
             except harness.FatalRunError as e:
                 assert KEY not in str(e) and abs(harness.spent() - spent0 - 0.4) < 1e-9 and sess.removed  # parsed cost is recorded before stopping
         assert KEY not in "".join(p.read_text() for p in harness.RAW.glob("*.json"))
+        # a 403 unrecognized_model is an error result flagged transient (repair_pr retries it), not a fatal stop
+        r, _ = repair_with(cj(is_error=True, subtype="error_during_execution",
+                              result="Failed to authenticate. API Error: 403 ASU error page success [claude-code:unrecognized_model]"), rc=1)
+        assert r["error"] and r["transient"] and all(p["passed"] is None for p in r["per_comment"])
         # fatal-looking text is not fatal when: budget-stop subtype, or prose merely mentioning authentication/billing
         r, _ = repair_with(cj(is_error=True, subtype="error_max_budget_usd", result="Invalid API key please run /login"), rc=1, diff="d", passed=True)
         assert r["error"] is None
@@ -781,6 +785,30 @@ def test_rate_limit_retry():
         assert abs(harness.spent() - spent0 - 0.52) < 1e-9  # both attempts charged once
 
 
+def test_transient_403_retry():
+    """A 403 unrecognized_model from the hosted endpoint is retried with backoff, not fatal on the first hit."""
+    f = [{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c"}]
+    calls = []
+    limit = {"per_comment": [{"comment_index": 0, "passed": None}], "cost_usd": 0.0,
+             "error": "Failed to authenticate. API Error: 403 ASU error page success [claude-code:unrecognized_model]",
+             "attempted": True, "transient": True}
+    with tmp_state():
+        with mock.patch.object(harness, "run_repair", lambda *a, **k: calls.append(1) or limit), \
+                mock.patch.object(time, "sleep", lambda s: None):
+            try:
+                harness.repair_pr(INST, f); raise SystemExit("transient 403 was not retried")
+            except harness.FatalRunError as e:
+                assert "after 2 retries" in str(e)
+        assert len(calls) == 1 + len(harness.RATE_LIMIT_SLEEPS) == 3
+        # one transient then success returns the success
+        calls.clear()
+        seq = iter([limit, {"per_comment": [{"comment_index": 0, "passed": True}], "cost_usd": 0.0, "error": None}])
+        with mock.patch.object(harness, "run_repair", lambda *a, **k: calls.append(1) or next(seq)), \
+                mock.patch.object(time, "sleep", lambda s: None):
+            r = harness.repair_pr(INST, f)
+        assert len(calls) == 2 and r["error"] is None and r["per_comment"][0]["passed"] is True
+
+
 def test_feedback_aggregation():
     """build_feedback aggregates per type, caps examples and findings, and carries rejected edits."""
     library = [{"id": "s1", "scope": "global", "text": "one", "order": 1},
@@ -995,7 +1023,7 @@ def test_score_library_guard():
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
     test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_ledger_tokens(); test_reviewer(); test_cache()
-    test_cap_env(); test_vendor_timeout_wrapper(); test_rate_limit_retry(); test_feedback_aggregation()
+    test_cap_env(); test_vendor_timeout_wrapper(); test_rate_limit_retry(); test_transient_403_retry(); test_feedback_aggregation()
     test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops()
     test_guards_and_summary(); test_image_cleanup(); test_proxy_hook(); test_eligible_test_guard()
     test_fresh_cache(); test_summarize_tokens(); test_round_logging(); test_score_library_guard()

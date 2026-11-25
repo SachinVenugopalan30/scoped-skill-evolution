@@ -320,12 +320,14 @@ def ensure_image(iid):
 
 
 # CLI error forms only; prose that merely mentions "authentication" or "billing" must not stop a run
-FATAL_RE = re.compile(r"invalid x-api-key|invalid api key|authentication_error|api error: ?40[13]|credit balance is too low|"
+FATAL_RE = re.compile(r"invalid x-api-key|invalid api key|authentication_error|api error: ?401|credit balance is too low|"
                       r"invalid proxy server token|incorrect api key|invalid_api_key|"
                       r"please run /login", re.I)
-# Free hosted quota is transient: repair_pr retries with backoff instead of stopping the whole multi-hour run.
+# Free hosted quota and model routing are transient: repair_pr retries with backoff instead of stopping the whole
+# multi-hour run. A persistent 403 still stops the run after the bounded retries.
 RATE_LIMIT_RE = re.compile(r"rate_limit_error|usage limit reached|too many requests|api error: ?429", re.I)
-RATE_LIMIT_SLEEPS = (60, 120)  # seconds before the 1st and 2nd rate-limit retry
+TRANSIENT_RE = re.compile(r"unrecognized_model|model not found|temporarily unavailable|asu error page|api error: ?403", re.I)
+RATE_LIMIT_SLEEPS = (60, 120)  # seconds before the 1st and 2nd retry (rate limit or transient model routing)
 
 
 def parse_claude(stdout):
@@ -390,7 +392,7 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
     invoked = False  # flips only right before the Claude run: earlier failures are free and safe to retry
     res = {"instance_id": iid, "repo": inst["repo"], "per_comment": [{"comment_index": ci, "passed": None} for ci, _, _ in tests],
            "agent_diff": "", "cost_usd": 0.0, "error": None, "duration_s": 0.0, "claude_version": None,
-           "attempted": False, "rate_limited": False, "usage": {k: 0 for k in USAGE_KEYS}}
+           "attempted": False, "rate_limited": False, "transient": False, "usage": {k: 0 for k in USAGE_KEYS}}
 
     def done(error=None, passed=None):
         res["attempted"] = invoked
@@ -433,7 +435,9 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         p = parse_claude(r.stdout)
         res["usage"] = p["usage"]
         res["attempted"] = invoked
-        res["rate_limited"] = bool(RATE_LIMIT_RE.search(" ".join([r.stderr or "", p["text"] if p["is_error"] else ""])))
+        err_text = " ".join([r.stderr or "", p["text"] if p["is_error"] else ""])
+        res["rate_limited"] = bool(RATE_LIMIT_RE.search(err_text))
+        res["transient"] = bool(TRANSIENT_RE.search(err_text))
         failed = p["is_error"] or r.returncode != 0
         hay = " ".join([p["text"] if p["is_error"] else "", r.stderr[:500], "" if p["ok"] else r.stdout[:500]])
         if failed and not r.timed_out and p["subtype"] != "error_max_budget_usd" and FATAL_RE.search(hay):
@@ -526,13 +530,14 @@ def repair_pr(inst, findings, model=REPAIR_MODEL, fresh=False, salt=None):
             # each attempt is recorded exactly once, including rate-limited attempts (no double charge)
             record("repair", inst["instance_id"], r["cost_usd"], tokens=r.get("usage"),
                    duration_s=r.get("duration_s"), model=model)
-            if r.get("error") and (r.get("rate_limited") or RATE_LIMIT_RE.search(str(r["error"]))):
+            if r.get("error") and (r.get("rate_limited") or r.get("transient")
+                                   or RATE_LIMIT_RE.search(str(r["error"])) or TRANSIENT_RE.search(str(r["error"]))):
                 if rate_retries >= len(RATE_LIMIT_SLEEPS):
-                    raise FatalRunError(f"rate limited on {inst['instance_id']} after {rate_retries} retries: "
-                                        f"{scrub(str(r['error']))[:300]}")
+                    raise FatalRunError(f"transient/rate-limited failure on {inst['instance_id']} after "
+                                        f"{rate_retries} retries: {scrub(str(r['error']))[:300]}")
                 delay = RATE_LIMIT_SLEEPS[rate_retries]
                 rate_retries += 1
-                print(f"rate limited on {inst['instance_id']}; retry {rate_retries}/{len(RATE_LIMIT_SLEEPS)} in {delay}s")
+                print(f"transient/rate-limited on {inst['instance_id']}; retry {rate_retries}/{len(RATE_LIMIT_SLEEPS)} in {delay}s")
                 time.sleep(delay)
                 continue
             if (r.get("error") and not r.get("attempted") and not r.get("cost_usd") and not infra_retried

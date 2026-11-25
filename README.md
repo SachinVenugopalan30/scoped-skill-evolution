@@ -215,6 +215,9 @@ Archived outputs:
 - **Disk:** if Docker runs low, `docker images | grep -E 'reviewbench|c-crab-benchmark'` shows any leftover
   benchmark images; remove them by exact tag. `df -h` and `docker system df` show host and Docker usage. The
   harness now removes each image immediately and refuses to start below 30 GB free.
+- **ASU 403 `unrecognized_model`:** transient routing error. The harness retries it twice with 60/120 s
+  backoff before stopping. If it persists, check `GET https://openai.rc.asu.edu/v1/models` for the current
+  model ids; a one-line completion with `litellm` distinguishes a real key/auth problem from a routing blip.
 
 ## Layout
 | File | Purpose |
