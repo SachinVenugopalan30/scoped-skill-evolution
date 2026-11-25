@@ -60,7 +60,9 @@ PIP_TIMEOUT = 300          # seconds for `pip install -e .`; emulated amd64 buil
 KEEP_IMAGES = os.environ.get("SSE_KEEP_IMAGES") == "1"  # debug: leave benchmark images in place
 MIN_FREE_GB = float(os.environ.get("SSE_MIN_FREE_GB", "30"))  # refuse to pull/start below this much host disk
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
-NO_IMAGE = {"python__cpython-104029@f78e70e"}
+# Images confirmed unavailable at 2026-11-24 (results/image_access.json; `docker manifest inspect` on all 184).
+# The first is the vendor-reported missing image; the other two return GHCR `unauthorized` for every retry.
+NO_IMAGE = {"python__cpython-104029@f78e70e", "PostHog__posthog-7569@db32271", "skypilot-org__skypilot-3017@1f526ee"}
 EXT = {"python": ".py", "javascript": ".test.js", "typescript": ".test.ts", "go": "_test.go"}
 CLAUDE_BIN, PROMPT_PATH, KEY_PATH = "/home/agent/.local/bin/claude", "/home/agent/prompt.txt", "/home/agent/.anthropic_env"
 PROXY_PORT, PROXY_TOKEN, _proxy = 4000, "unset", None  # token is random per run; only the local proxy accepts it

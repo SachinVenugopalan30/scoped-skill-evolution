@@ -14,8 +14,9 @@ is accepted only if it clears a calibrated net-gain gate on the held-out selecti
 LiteLLM proxy that translates to the ASU endpoint (see "How the model is wired").
 
 **Status: final-experiment phase.** The pipeline is stable and the final protocol is pre-registered in
-[`PROTOCOL.md`](PROTOCOL.md). Final runs use the full eligible partitions (development 89 PRs, selection 34,
-locked test 52). Earlier small-sample outputs are archived: `results/qwen_pilot/` holds the partial qwen
+[`PROTOCOL.md`](PROTOCOL.md). Final runs use the full eligible partitions (development 87 PRs, selection 34,
+locked test 52). Three PRs have no accessible image (one vendor-reported, two GHCR `unauthorized`); see
+`results/image_access.json`. Earlier small-sample outputs are archived: `results/qwen_pilot/` holds the partial qwen
 pilot (12 dev / 8 selection, one round per condition), and `results/sonnet_4_6/` holds the older Sonnet 4.6
 run. **Neither is a final result.** The test partition is guarded and must only be run once, after the freeze
 record `results/FROZEN.json` exists.
@@ -81,7 +82,7 @@ only until the freeze, then the locked test pass.
    Prints per-test results, token usage and the running totals.
 5. **Static baseline** (no learned skills) on the full eligible development partition:
    ```bash
-   uv run python evolve.py static --partition development --n 89 --seed 0
+   uv run python evolve.py static --partition development --n 87 --seed 0 --salt static-v1
    ```
    Writes `results/static_development.json`.
 6. **Calibrate the gate** (PROTOCOL §9.1): evaluate the unchanged baseline library on the selection partition
@@ -96,14 +97,14 @@ only until the freeze, then the locked test pass.
    evolving. Each run writes `results/static_selection.json`, so copy it aside after each repeat.
 7. **Gated evolution, one condition at a time** (substitute the calibrated `<tau>`):
    ```bash
-   uv run python evolve.py evolve --condition global --dev-n 89 --sel-n 34 --rounds 5 \
+   uv run python evolve.py evolve --condition global --dev-n 87 --sel-n 34 --rounds 5 \
      --gate-min-gain <tau> --gate-max-regress 1 --stop-after-rejections 2 --seed 0
-   uv run python evolve.py evolve --condition scoped --dev-n 89 --sel-n 34 --rounds 5 \
+   uv run python evolve.py evolve --condition scoped --dev-n 87 --sel-n 34 --rounds 5 \
      --gate-min-gain <tau> --gate-max-regress 1 --stop-after-rejections 2 --seed 0
    ```
    Add `--no-gate` for the ungated ablation (fixed 3 rounds):
    ```bash
-   uv run python evolve.py evolve --condition scoped --dev-n 89 --sel-n 34 --rounds 3 --no-gate --seed 0
+   uv run python evolve.py evolve --condition scoped --dev-n 87 --sel-n 34 --rounds 3 --no-gate --seed 0
    ```
    Run the conditions **one after the other** so later conditions reuse the cached baseline where valid.
    Outputs: `results/evolution/<condition>.jsonl`, `results/skills/<condition>/round_<n>.json`.

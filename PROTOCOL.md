@@ -78,13 +78,16 @@ three PR types (bug_fix, feature, other).
 A PR is eligible iff it has a prebuilt Docker image and its patch is at most `reviewer.MAX_DIFF_CHARS` =
 120,000 characters. The rule is applied identically to all partitions and all conditions, before sampling:
 
-* **no image:** one PR (`python__cpython-104029@f78e70e`, selection);
+* **no image:** three PRs, confirmed with `docker manifest inspect` on all 184 on 2026-11-24
+  (`results/image_access.json`): `python__cpython-104029@f78e70e` (selection), plus
+  `PostHog__posthog-7569@db32271` and `skypilot-org__skypilot-3017@1f526ee` (development), whose GHCR
+  images return `unauthorized` on every retry;
 * **oversize:** eight PRs (dev 3, selection 2, test 3), whose diffs cannot be passed to the reviewer under
   the frozen cap.
 
 | Partition | Split PRs / comments / repos | No image | Oversize | **Eligible PRs / comments / repos** | Role |
 |---|---|---|---|---|---|
-| development | 92 / 112 / 25 | 0 | 3 | **89 / 109 / 25** | fit skills, optimizer feedback |
+| development | 92 / 112 / 25 | 2 | 3 | **87 / 107 / 25** | fit skills, optimizer feedback |
 | selection | 37 / 47 / 20 | 1 | 2 | **34 / 42 / 17** | gate only |
 | test | 55 / 75 / 22 | 0 | 3 | **52 / 70 / 21** | locked scoring only |
 
@@ -359,7 +362,7 @@ committed, and must contain at least:
 | # | Deviation | Why | Consequence |
 |---|---|---|---|
 | D1 | The proposal assumed **Claude Sonnet 4.6 for repair**; the final runs use **`qwen36-27b` for reviewer, optimizer, and repair**. | ASU Voyager hosting is free and available; repair had to speak the Anthropic API through a local LiteLLM proxy. | Absolute scores are not comparable to the Sonnet pilot in `results/sonnet_4_6/` or to the released-tool numbers, which used their own agents. All conditions share the same model, so the internal comparison is valid; external comparability is explicitly limited. |
-| D2 | **Oversize PRs (>120k diff characters) and one no-image PR are excluded**: dev 89, selection 34, test 52 (from 92/37/55). | The reviewer has a hard diff cap; the missing image cannot be evaluated. Exclusions use only inputs, never outcomes. | Reported denominators are 109 / 42 / 70 comments. Selection and test are slightly smaller than the proposal targets. |
+| D2 | **Oversize PRs (>120k diff characters) and inaccessible images are excluded**: dev 87, selection 34, test 52 (from 92/37/55). Three images are unavailable: one vendor-reported missing, two GHCR `unauthorized` (see `results/image_access.json`). | The reviewer has a hard diff cap; an unavailable image cannot be evaluated. Exclusions use only inputs, never outcomes. | Reported denominators are 107 / 42 / 70 comments. Development is 2 PRs smaller than the progress-stage estimate. |
 | D3 | **`MAX_EDITS = 1`** per round, not 2. | With small selection sets, a 2-edit candidate makes the gate's gain/regression signal harder to attribute and doubles some evaluation cost. | Slower library growth; each accepted edit is cleaner to interpret. Net gain per accepted edit remains comparable across conditions. |
 | D4 | The gate uses a **calibrated net-gain threshold** instead of the fixed SkillOpt rule; SkillOpt is reported as sensitivity. | The pilot showed that selection noise can swamp a fixed ±1 rule. | If calibration yields 1, the gates coincide. Both are reported. |
 | D5 | **Four test-partition PRs have JavaScript tests**; they are retained and scored as released. | The harness and images are used unmodified; no JS-specific work was completed in time. | These PRs may fail for environment reasons; errors count as failed in the primary metric, and complete-case results are reported as sensitivity. |
@@ -391,7 +394,7 @@ No amendments have been made at pre-registration time (2026-11-23).
 
 | Milestone | Target |
 |---|---|
-| Phase A: harden + offline tests + pilot + full static baseline (dev 89 + selection 34) | 2026-11-23 to 2026-11-25 |
+| Phase A: harden + offline tests + pilot + full static baseline (dev 87 + selection 34) | 2026-11-23 to 2026-11-25 |
 | Gate calibration (5 fresh A/A repeats on selection) | 2026-11-25 |
 | Phase B: global gated evolution (≤5 rounds) | 2026-11-25 to 2026-11-28 |
 | Phase B: scoped gated evolution (≤5 rounds) | 2026-11-27 to 2026-11-29 |
