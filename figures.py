@@ -113,9 +113,12 @@ def fig_test_comparison(summary, path):
     primary = summary.get("primary_contrast")
     if isinstance(primary, dict) and primary.get("a"):
         mc = primary.get("mcnemar") or {}
-        footer += (f"\nPrimary: {primary['a']} - {primary['b']} = "
-                   f"{(primary.get('diff_pp') or 0):+.1f} pp, permutation p={primary.get('permutation_p'):.3f}, "
-                   f"McNemar p={mc.get('p', float('nan')):.3g} (discordant {mc.get('discordant', '?')}).")
+        diff, perm = primary.get("diff_pp"), primary.get("permutation_p")
+        diff_s = f"{diff:+.1f}" if isinstance(diff, (int, float)) else "n/a"
+        perm_s = f"{perm:.3f}" if isinstance(perm, (int, float)) else "n/a"
+        footer += (f"\nPrimary: {primary['a']} - {primary['b']} = {diff_s} pp, "
+                   f"permutation p={perm_s}, McNemar p={mc.get('p', float('nan')):.3g} "
+                   f"(discordant {mc.get('discordant', '?')}).")
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.24 if "\n" in footer else 0.15)
     fig.text(0.01, 0.01, footer, fontsize=6.5, color="#444444", va="bottom")

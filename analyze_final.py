@@ -65,8 +65,16 @@ def _discover(results_dir=None):
     found = {}
     for p in paths:
         cond = p.stem[len("test_"):]
-        if cond:
-            found[cond] = p
+        if not cond:
+            continue
+        try:
+            d = json.loads(p.read_text())
+        except Exception:
+            found[cond] = p  # _load will report the malformed file
+            continue
+        if d.get("partition") != "test":
+            continue  # never put a dev/selection copy into the locked-test table
+        found[cond] = p
     order = [c for c in PREFERRED_ORDER if c in found]
     order += sorted(c for c in found if c not in PREFERRED_ORDER)
     return [(c, found[c]) for c in order]
@@ -386,6 +394,8 @@ def _static_selection_rate(results_dir=None):
         d = json.loads(path.read_text())
     except Exception:
         return None
+    if d.get("salt") not in (None, "static-v1"):
+        return None  # a calibration draw overwrote the baseline; do not report it as the static reference
     return (d.get("summary") or {}).get("pass_rate_errors_as_failed")
 
 
@@ -508,6 +518,19 @@ def _condition_metrics(cond, path, n_boot, seed, evo_summary, results_dir=None):
     }
     if d.get("partition") != "test":
         metrics["warnings"].append(f"partition field is {d.get('partition')!r}, expected 'test'")
+    if d.get("n_done") is not None and d.get("n_requested") is not None and d.get("n_done") != d.get("n_requested"):
+        metrics["warnings"].append(f"INCOMPLETE scored file: n_done={d.get('n_done')} != n_requested={d.get('n_requested')}")
+    frozen_path = Path(results_dir or R) / "FROZEN.json"
+    if frozen_path.exists():
+        try:
+            frozen = json.loads(frozen_path.read_text())
+            want_lib = (frozen.get("libraries") or {}).get(cond)
+            if want_lib and d.get("library_sha256") and want_lib != d.get("library_sha256"):
+                metrics["warnings"].append("PROVENANCE: library_sha256 differs from FROZEN.json")
+            if frozen.get("code_sha") and d.get("code_sha") and frozen["code_sha"] != d.get("code_sha"):
+                metrics["warnings"].append("PROVENANCE: code_sha differs from FROZEN.json")
+        except Exception:
+            metrics["warnings"].append("could not read results/FROZEN.json for provenance checks")
     metrics["scored_summary"] = {"pass_rate_errors_as_failed": summ.get("pass_rate_errors_as_failed"),
                                  "n_comments": summ.get("n_comments"), "passed": summ.get("passed")}
     if comments_source != "comments":

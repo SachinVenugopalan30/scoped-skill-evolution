@@ -164,7 +164,8 @@ those decisions are used by the gate, not as content feedback about which PRs pa
 ## 8. Optimizer and feedback aggregation
 
 * One optimizer call per round, made **after** evaluating the current library on the development partition.
-* **Feedback aggregation:** all non-errored development PRs are combined into one payload, in a fixed order
+* **Feedback aggregation:** aggregate pass/fail counts cover all non-errored development PRs, plus up to 12
+  failed-first examples (at most 3 findings each) carrying the reviewer's own text, in a fixed order
   (seeded development order), each as `{pr_type, findings, passed, total}`. No per-PR outcome is attributed
   to a specific comment.
 * **`MAX_EDITS = 1`**: at most one edit is proposed per round (add, replace, or delete). This differs from

@@ -115,14 +115,33 @@ def _sum_or_none(values):
 
 def _scope_counts(library):
     counts = {s: 0 for s in SCOPES}
+    counts["unknown"] = 0
     for skill in library if isinstance(library, list) else []:
         scope = skill.get("scope") if isinstance(skill, dict) else None
-        counts[scope if scope in counts else "other"] += 1
+        counts[scope if scope in SCOPES else "unknown"] += 1
     return counts
 
 
 def _library_size(library):
     return len(library) if isinstance(library, list) else None
+
+
+def _apply_sim(lib, edits):
+    """Apply recorded edits to a simulated library for the SkillOpt sensitivity analysis."""
+    out = [dict(x) for x in lib]
+    for e in edits or []:
+        if not isinstance(e, dict):
+            continue
+        op = e.get("op")
+        if op == "add":
+            out.append({"id": e.get("id") or f"sim{len(out) + 1}", "scope": e.get("scope"), "text": e.get("text")})
+        elif op == "replace":
+            for x in out:
+                if x.get("id") == e.get("id"):
+                    x["text"] = e.get("text")
+        elif op == "delete":
+            out = [x for x in out if x.get("id") != e.get("id")]
+    return out
 
 
 def wilson_ci(k, n, z=1.959963984540054):
@@ -195,6 +214,13 @@ def load_condition(cond, evo_dir):
             duplicates += 1
         by_round[rn] = r  # latest record for a round number wins
     ordered = [by_round[k] for k in sorted(by_round)]
+    # Drop stale higher-numbered rounds from an earlier run after a resume: the final library and
+    # the freeze summary must come from the latest run lineage, not round 5 of an abandoned run.
+    latest_id = str(headers[-1].get("run_id")) if headers else None
+    if latest_id and any(str(r.get("run_id")) == latest_id for r in ordered):
+        latest_rounds = [r for r in ordered if str(r.get("run_id")) == latest_id]
+        max_latest = max(_int(r.get("round")) for r in latest_rounds)
+        ordered = [r for r in ordered if _int(r.get("round")) <= max_latest]
     runs = {}
     for r in ordered:
         runs[str(r.get("run_id"))] = runs.get(str(r.get("run_id")), 0) + 1
@@ -404,6 +430,18 @@ def condition_metrics(cond, rows, loaded):
     final_library = next((r.get("library_after") for r in reversed(loaded["rounds"])
                           if isinstance(r.get("library_after"), list)), [])
     header = loaded.get("header") or {}
+    raw_by_round = {_int(r.get("round")): r for r in loaded.get("rounds", [])}
+    skillopt_rounds, sim_lib = [], []
+    for r in rows:
+        if r.get("gated") is not True or not r.get("edits_count"):
+            continue
+        gained, regressed = r.get("gained") or 0, r.get("regressed") or 0
+        if gained >= 1 and regressed <= 1:  # SkillOpt rule, separate from the net gate
+            edits = (raw_by_round.get(r.get("round")) or {}).get("edits") or []
+            sim_lib = _apply_sim(sim_lib, edits)
+            skillopt_rounds.append({"round": r.get("round"), "gained": gained, "regressed": regressed,
+                                    "net": gained - regressed, "edits": len(edits),
+                                    "simulated_library_size": len(sim_lib)})
     metrics = {
         "condition": cond,
         "log_path": str(loaded["path"]),
@@ -420,6 +458,14 @@ def condition_metrics(cond, rows, loaded):
         "regressions_per_accepted_edit": _round4(regressions / edits_accepted_gated) if edits_accepted_gated else None,
         "net_gain_per_accepted_edit": _round4((gains - regressions) / edits_accepted_gated) if edits_accepted_gated else None,
         "regressions_per_accepted_round": _round4(regressions / len(accepted_gated)) if accepted_gated else None,
+        "skillopt_sensitivity": {
+            "rule": "gained >= 1 and regressed <= 1 (not the net gate)",
+            "accepted_rounds": skillopt_rounds,
+            "n_accepted_rounds": len(skillopt_rounds),
+            "simulated_library_size": len(sim_lib),
+            "simulated_library": [{"id": x.get("id"), "scope": x.get("scope"), "text": x.get("text")} for x in sim_lib],
+            "note": "Library chain simulated from the recorded edits; its pass rates are not re-evaluated",
+        },
         "selection_to_dev_gap": {"per_round": gap,
                                  "mean": _round4(sum(g["sel_new_minus_dev"] for g in gap) / len(gap)) if gap else None,
                                  "final": gap[-1]["sel_new_minus_dev"] if gap else None},
