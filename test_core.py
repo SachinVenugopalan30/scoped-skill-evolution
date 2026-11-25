@@ -252,6 +252,12 @@ def test_reviewer():
     got = reviewer.parse_findings(mixed)
     assert [("line" in g, "start_line" in g) for g in got] == [(True, False), (False, True)]
     assert reviewer.parse_findings("no json here") is None
+    # git-diff metadata is stripped for the WAF fallback; file name and hunks stay
+    raw = "diff --git a/pkg/mod.py b/pkg/mod.py\nindex aaa..bbb 100644\n--- a/pkg/mod.py\n+++ b/pkg/mod.py\n@@ -1,2 +1,2 @@\n-x\n+y"
+    cleaned = reviewer.clean_diff(raw)
+    assert "### File: pkg/mod.py" in cleaned and "diff --git" not in cleaned
+    assert "index " not in cleaned and "--- " not in cleaned and "+++ " not in cleaned
+    assert "@@ -1,2 +1,2 @@" in cleaned and "+y" in cleaned
     # prompt has no gold data
     msgs = json.dumps(reviewer.build_messages(INST, ["skill one"]))
     gold = [c["text"] for c in INST["reference_review_comments"]] + [INST["merged_patch"], INST["hints_text"]] + \
@@ -288,6 +294,33 @@ def test_reviewer():
     with mock.patch.object(litellm, "completion", lambda **kw: next(seq)), mock.patch.object(litellm, "completion_cost", return_value=0.01):
         r = reviewer.review(INST, [])
     assert len(r["findings"]) == 1 and "error" not in r and r["cost_usd"] == 0.02
+
+
+def test_review_waf_fallback():
+    """A 403 ASU WAF block retries once with the git-diff metadata stripped, then succeeds."""
+    calls = []
+    def fake(**kw):
+        calls.append(kw)
+        if len(calls) == 1:
+            raise litellm.exceptions.APIError(403, "ASU error page 403", "openai", "openai/qwen36-27b")
+        return fake_resp(GOOD)
+    with mock.patch.object(litellm, "completion", fake):
+        r = reviewer.review(INST, [])
+    assert len(calls) == 2 and r.get("error") is None and len(r["findings"]) == 1
+    first, second = calls[0]["messages"][-1]["content"], calls[1]["messages"][-1]["content"]
+    if "diff --git" in first:
+        assert "### File:" in second and "diff --git" not in second
+    # a non-403 APIError is not retried
+    calls.clear()
+    def auth(**kw):
+        calls.append(kw)
+        raise litellm.exceptions.APIError(401, "401 invalid key", "openai", "openai/qwen36-27b")
+    with mock.patch.object(litellm, "completion", auth):
+        try:
+            reviewer.review(INST, []); raise SystemExit("401 was retried")
+        except litellm.exceptions.APIError:
+            pass
+    assert len(calls) == 1
 
 
 def test_cache():
@@ -1022,7 +1055,7 @@ def test_score_library_guard():
 
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
-    test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_ledger_tokens(); test_reviewer(); test_cache()
+    test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_ledger_tokens(); test_reviewer(); test_review_waf_fallback(); test_cache()
     test_cap_env(); test_vendor_timeout_wrapper(); test_rate_limit_retry(); test_transient_403_retry(); test_feedback_aggregation()
     test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops()
     test_guards_and_summary(); test_image_cleanup(); test_proxy_hook(); test_eligible_test_guard()
