@@ -289,6 +289,11 @@ def test_reviewer():
         assert abs(harness.spent() - 0.03) < 1e-12
     # truncated outer list -> None (retry), never a stray inner list
     assert reviewer.extract_list('[{"file": "a", "x": [1, 2], "issue_header": "h"') is None
+    # a list wrapped under an unexpected key is used only when it is the object's sole list
+    assert reviewer.extract_list('{"library": [{"op": "add"}]}', "edits") == [{"op": "add"}]
+    assert reviewer.extract_list('{"a": [1], "b": [2]}', "edits") is None
+    assert evolve.parse_edits('{\n "library": [{"op": "add", "scope": "global", "text": "t"}]}', [], "scoped") == \
+        [{"op": "add", "scope": "global", "text": "t"}]
     assert reviewer.parse_findings('[{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c", "w": [1]},{"fi') is None
     seq = iter([fake_resp("nope"), fake_resp(GOOD)])
     with mock.patch.object(litellm, "completion", lambda **kw: next(seq)), mock.patch.object(litellm, "completion_cost", return_value=0.01):
@@ -1093,6 +1098,16 @@ def test_evolve_loop_rounds():
         evolve.main()
         log = [json.loads(l) for l in (d / "results/evolution/scoped.jsonl").read_text().splitlines()]
     assert seen == [1, 2], seen
+    # a resumed run (new header) still sees edits the gate rejected before the resume
+    with tempfile.TemporaryDirectory() as d, mock.patch.object(evolve, "ROOT", Path(d)):
+        path = Path(d) / "results/evolution/scoped.jsonl"; path.parent.mkdir(parents=True)
+        e1, e2 = {"op": "add", "scope": "global", "text": "one"}, {"op": "add", "scope": "global", "text": "two"}
+        path.write_text("\n".join(json.dumps(r) for r in [
+            {"run_id": "a", "dev_ids": []}, {"round": 1, "accept": False, "edits": [e1]},
+            {"round": 2, "accept": False, "edits": []}, {"run_id": "b", "dev_ids": []},
+            {"round": 2, "accept": False, "edits": [e2]}, {"round": 3, "aborted": "x"}]))
+        assert evolve.rejected_from_log("scoped", 1) == [{**e1, "outcome": "rejected"}]
+        assert [r["text"] for r in evolve.rejected_from_log("scoped", 2)] == ["one", "two"]
     assert log[-1]["stopped"] == "stop-after-rejections" and log[-1]["round"] == 2
 
 

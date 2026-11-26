@@ -639,7 +639,8 @@ def latest_snapshot(condition):
 
 
 def rejected_from_log(condition, upto):
-    """Rejected edits from the latest run header through round `upto`, so a resumed run keeps the do-not-repeat context."""
+    """Rejected edits through round `upto`, so a resumed run keeps the do-not-repeat context. Reads every run in the log
+    (a resume appends a new header), keeping the latest record per round number, as analyze_evolution does."""
     path = ROOT / f"results/evolution/{condition}.jsonl"
     if not path.exists():
         return []
@@ -649,11 +650,11 @@ def rejected_from_log(condition, upto):
             recs.append(json.loads(line))
         except Exception:
             continue
-    start = max((i for i, r in enumerate(recs) if "dev_ids" in r), default=0)
+    by_round = {r["round"]: r for r in recs if r.get("round") is not None and "accept" in r}
     out = []
-    for r in recs[start:]:
-        rn = r.get("round")
-        if rn is not None and rn <= upto and r.get("edits") and not r.get("accept"):
+    for rn in sorted(by_round):
+        r = by_round[rn]
+        if rn <= upto and r.get("edits") and not r.get("accept"):
             out += [{**e, "outcome": "rejected"} for e in r["edits"]]
     return out
 

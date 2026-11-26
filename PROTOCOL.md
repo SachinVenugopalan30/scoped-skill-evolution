@@ -462,6 +462,31 @@ archive, reported only as an anecdote: the single scoped candidate that was eval
 and regressed 3 selection PRs. That is within the A/A noise band of §9.1.
 
 **Evidence used.** Phase B run logs and round records on development and selection only. No test-partition data.
+### A3 — 2026-11-26 (before freeze; scoped round 2 re-run)
+
+**Decision changed.** None of the pre-registered decisions change. This amendment records two parsing and resume bugs
+found in Phase B and re-runs one round that the first bug invalidated.
+
+1. **Wrapped optimizer reply dropped.** In scoped round 2, the optimizer returned a valid `add` wrapped as
+   `{"library": [...]}` instead of a bare list. The parser looked only for an `edits` key, so it dropped the edit.
+   The round was recorded as "no edits" and, under the A2 stop rule, counted as the second rejection, which ended
+   scoped after 2 rounds. The candidate was never evaluated. The same wrapping is the likely cause of the five
+   empty rounds in the discarded attempt (A2, item 3). Now, when a JSON object lacks the expected key, its list is
+   used only if it is the object's sole list.
+2. **Resume forgot earlier rejections.** `rejected_from_log` read only the records after the latest run header, so
+   a resumed run lost the do-not-repeat list from before the resume. It now reads every run in the log and keeps
+   the latest record for each round number, as `analyze_evolution.py` does.
+
+**Re-run.** Only scoped round 2 is re-run. Its record and its `round_2` snapshot hold the unchanged empty library
+and no gate decision. The command is `run_phase_b.py --conditions scoped --resume --rounds 2`. If that round is
+rejected, scoped stops at 2 consecutive rejections, as the stop rule requires. If it is accepted, scoped resumes
+up to 5 rounds. The analysis keeps the latest record per round, so the re-run supersedes the invalid record. Both
+records stay in the append-only log. Global is unaffected: both of its rounds were real gate decisions
+(nets −4 and −3).
+
+**Evidence used.** Phase B round records (`optimizer_raw`) on development and selection only. No test-partition
+data.
+
 
 ---
 

@@ -102,7 +102,10 @@ def extract_list(raw, key=None):
         obj, _ = json.JSONDecoder().raw_decode(raw[i:])
     except ValueError:
         return None
-    obj = obj.get(key) if isinstance(obj, dict) else obj
+    if isinstance(obj, dict):
+        # The model sometimes wraps the list under another key ({"library": [...]}): take it only if it is the sole list.
+        lists = [v for v in obj.values() if isinstance(v, list)]
+        obj = obj.get(key) if key in obj else (lists[0] if len(lists) == 1 else None)
     return obj if isinstance(obj, list) else None
 
 
