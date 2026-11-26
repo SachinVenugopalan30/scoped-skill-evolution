@@ -478,7 +478,7 @@ found in Phase B and re-runs one round that the first bug invalidated.
    the latest record for each round number, as `analyze_evolution.py` does.
 
 **Re-run.** Only scoped round 2 is re-run. Its record and its `round_2` snapshot hold the unchanged empty library
-and no gate decision. The command is `run_phase_b.py --conditions scoped --resume --rounds 2`. If that round is
+and no gate decision. `run_phase_b.py` refuses to resume a run that ended on a stop marker, by design, so the round is run with `evolve.py` directly, with the runner's exact flags: `SSE_WORKERS=3 evolve.py evolve --condition scoped --dev-n 87 --sel-n 34 --rounds 2 --gate-min-gain 1 --gate-max-regress 1 --stop-after-rejections 2 --seed 0 --salt static-v1 --resume`. If that round is
 rejected, scoped stops at 2 consecutive rejections, as the stop rule requires. If it is accepted, scoped resumes
 up to 5 rounds. The analysis keeps the latest record per round, so the re-run supersedes the invalid record. Both
 records stay in the append-only log. Global is unaffected: both of its rounds were real gate decisions
