@@ -488,6 +488,27 @@ records stay in the append-only log. Global is unaffected: both of its rounds we
 data.
 
 
+
+### A4 — 2026-11-26 (before freeze; scoped rounds 3–4 invalid)
+
+**Decision changed.** None of the pre-registered decisions change. This amendment records a third optimizer-reply shape
+the parser dropped.
+
+In scoped rounds 3 and 4, the optimizer returned one bare edit object (`{"op": "add", "scope": "global", "text": ...}`),
+with no surrounding list. A3 had handled a wrapped list, not a bare object, so both rounds parsed to "no edits".
+Under the stop rule they counted as two consecutive rejections, and scoped stopped at round 4 without evaluating
+either candidate. With no edit, the feedback did not change, so round 4's prompt and reply were identical to round 3's.
+`parse_edits` now accepts every shape seen from the model: a bare list, `{"edits": [...]}`, a list wrapped under
+another key, a single bare edit object, and fenced JSON. Each shape has an offline test.
+
+**Re-run.** Scoped rounds 3 and 4 are invalid as gate decisions. Their snapshots hold the round-2 library unchanged.
+The development pass of round 3 is valid and cached: the library with 1 skill passed 21 of 107 development comments,
+with 2 errors, against 26 of 107 for the static reviewer. The re-run resumes scoped from the `round_2` snapshot with
+the runner's flags (`evolve.py evolve --condition scoped ... --resume`, same salt). The analysis keeps the latest
+record per round, so the invalid records stay in the append-only log but are superseded.
+
+**Evidence used.** Phase B round records (`optimizer_raw`) on development and selection only. No test-partition data.
+
 ---
 
 ## 18. Approximate timeline

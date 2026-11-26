@@ -212,9 +212,23 @@ def build_feedback(dev_results, library, condition, rejected=()):
 
 
 # ---------- optimizer ----------
+def _edit_items(raw):
+    """Edits from the optimizer reply in any shape the model has used: a bare list, {"edits": [...]},
+    a list wrapped under another key ({"library": [...]}), or a single bare edit object ({"op": ...})."""
+    items = reviewer.extract_list(raw, "edits")
+    if items is not None:
+        return items
+    i = raw.find("{")
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(raw[i:]) if i >= 0 else (None, 0)
+    except ValueError:
+        return []
+    return [obj] if isinstance(obj, dict) and "op" in obj else []
+
+
 def parse_edits(raw, library, condition):
     ids, out = {s["id"] for s in library}, []
-    for e in reviewer.extract_list(raw, "edits") or []:
+    for e in _edit_items(raw):
         if not isinstance(e, dict) or e.get("op") not in ("add", "replace", "delete"):
             continue
         text = " ".join(str(e.get("text") or "").split()[:MAX_WORDS])

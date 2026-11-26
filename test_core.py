@@ -294,6 +294,11 @@ def test_reviewer():
     assert reviewer.extract_list('{"a": [1], "b": [2]}', "edits") is None
     assert evolve.parse_edits('{\n "library": [{"op": "add", "scope": "global", "text": "t"}]}', [], "scoped") == \
         [{"op": "add", "scope": "global", "text": "t"}]
+    one = [{"op": "add", "scope": "feature", "text": "t"}]
+    for raw in ('[{"op": "add", "scope": "feature", "text": "t"}]', '{"edits": [{"op": "add", "scope": "feature", "text": "t"}]}',
+                '{\n "op": "add",\n "scope": "feature",\n "text": "t"\n}', '```json\n{"op": "add", "scope": "feature", "text": "t"}\n```'):
+        assert evolve.parse_edits(raw, [], "scoped") == one, raw  # every reply shape seen from the model
+    assert evolve.parse_edits('{"note": "nothing to change"}', [], "scoped") == [] and evolve.parse_edits("no json", [], "scoped") == []
     assert reviewer.parse_findings('[{"file": "a.py", "line": 1, "issue_header": "h", "issue_content": "c", "w": [1]},{"fi') is None
     seq = iter([fake_resp("nope"), fake_resp(GOOD)])
     with mock.patch.object(litellm, "completion", lambda **kw: next(seq)), mock.patch.object(litellm, "completion_cost", return_value=0.01):
