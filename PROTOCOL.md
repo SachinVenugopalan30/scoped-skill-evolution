@@ -544,6 +544,43 @@ are identical to `global` and `scoped` except for the optimizer feedback (design
 
 **Evidence used.** Phase B round records and the 2026-11-26 scope document. No test-partition data.
 
+
+### A6 — 2026-11-27 (after the freeze; interrupted test passes resumed)
+
+**What happened.** The locked test passes under the first freeze (`187c9d7`) did not complete. Static and global
+stopped at 38 of 52 PRs and scoped at 37 of 52. Each stop came from one PR: `scipy__scipy-20393` for static and
+scoped, and `zulip__zulip-25349` for global. In each case the repair agent got `ECONNREFUSED` from the local proxy
+partway through its run, and after the retries the harness treated that as an outage and stopped the pass. The host's
+free-memory log fell to 65 MB during the first stop, so the likely cause is that a memory-heavy repair exhausted the
+shared 8 GB host and the kernel killed the proxy. The kernel log is not readable without root, so this is inferred
+from the timing.
+
+**Decision changed.** Only infrastructure handling. No condition, library, threshold, salt, metric or test id changes.
+
+1. `SSE_CONTAINER_MEM` caps each benchmark container's RAM, set with `docker update` right after start. It is set to
+   1536m on the shared host for every remaining evaluation. It is unset by default, so earlier behaviour is unchanged.
+2. When a repair still fails after its retries, the harness checks the local proxy and the endpoint. If both answer,
+   the PR is an infrastructure error (`passed = None`: failed in the primary metric, excluded from gates, not
+   cached). If either is down, the pass stops as before. A2 had made this decision only for errors containing
+   "ASU error page".
+3. Re-freeze: `results/FROZEN.json` is rewritten with the new code hash (`freeze.py --refreeze A6`), and the first
+   record is kept as `results/FROZEN_v1.json`. The library hashes, test ids and test salt are identical.
+4. Each condition is resumed once with `score --resume --salt test-1`. PRs that already produced a result, including
+   errored ones, are kept and never re-rolled. Only the 14–15 missing PRs per condition run, under the memory cap.
+
+**Disclosures.**
+* The interrupted passes printed summary lines (pass counts on 37–38 PRs) to the run log, and the authors saw them
+  before this amendment. They were not used to choose anything here. The fix is infrastructure-only and was decided
+  from the stop reasons and the memory log.
+* Completed PRs ran without the memory cap; the remaining PRs run with it.
+* The resumed passes run from code that also contains the A5 rich-feedback path. That path is inactive for `static`,
+  `global` and `scoped`, and an offline test checks their payload is unchanged.
+* **Correction to A5.** Global does not equal static exactly. Errored repairs are not cached, so global re-ran the
+  PRs that errored for static and drew different errors (4 errored PRs each, partly different ones). On every PR that
+  completed in both, global reuses static's cached draw. The report states this.
+
+**Evidence used.** Run logs, stop reasons and the host memory log. No test outcome informed the decision.
+
 ---
 
 ## 18. Approximate timeline

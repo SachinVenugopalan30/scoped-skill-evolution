@@ -1077,16 +1077,28 @@ def test_waf_blocked_repair():
     calls = []
     with tmp_state(), mock.patch.object(harness, "run_repair", lambda *a, **k: calls.append(1) or dict(blocked)), \
             mock.patch.object(time, "sleep", lambda s: None):
-        with mock.patch.object(harness, "endpoint_ok", lambda: True):
+        with mock.patch.object(harness, "endpoint_ok", lambda: True), mock.patch.object(harness, "proxy_ok", lambda: True):
             r = harness.repair_pr(INST, f, salt="s")
             assert r["content_blocked"] and "WAF" in r["error"] and harness.pr_passed(r) is None
             harness.repair_pr(INST, f, salt="s")
             assert len(calls) == 2 * (1 + len(harness.RATE_LIMIT_SLEEPS))  # not served from the cache
-        with mock.patch.object(harness, "endpoint_ok", lambda: False):
+        with mock.patch.object(harness, "endpoint_ok", lambda: False), mock.patch.object(harness, "proxy_ok", lambda: True):
             try:
                 harness.repair_pr(INST, f, salt="s"); raise SystemExit("an endpoint outage did not stop the run")
             except harness.FatalRunError:
                 pass
+        with mock.patch.object(harness, "endpoint_ok", lambda: True), mock.patch.object(harness, "proxy_ok", lambda: False):
+            try:
+                harness.repair_pr(INST, f, salt="s"); raise SystemExit("a dead proxy did not stop the run")
+            except harness.FatalRunError:
+                pass
+    # a non-WAF persistent failure (e.g. proxy refused mid-run, then healthy again) is also per-PR, when both answer
+    other = {**blocked, "error": "git diff timed out after the agent ran", "transient": True}
+    with tmp_state(), mock.patch.object(harness, "run_repair", lambda *a, **k: dict(other)), \
+            mock.patch.object(time, "sleep", lambda s: None), mock.patch.object(harness, "endpoint_ok", lambda: True), \
+            mock.patch.object(harness, "proxy_ok", lambda: True):
+        r = harness.repair_pr(INST, f, salt="s")
+        assert r["content_blocked"] and r["error"].startswith("persistent per-PR failure") and harness.pr_passed(r) is None
 
 
 def test_evolve_loop_rounds():

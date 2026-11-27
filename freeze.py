@@ -37,11 +37,12 @@ def rounds_for(condition, upto):
             for n, r in sorted(by.items()) if n <= upto]
 
 
-def build(test_salt, conditions=CONDITIONS):
+def build(test_salt, conditions=CONDITIONS, refreeze=None):
     if git("status", "--porcelain", "--untracked-files=no"):
         raise SystemExit("tracked files are modified: commit first (a dirty tree is refused, PROTOCOL §14)")
-    done = sorted(p.name for c in conditions for p in (ROOT / "results").glob(f"test_{c}.json")) + \
-        sorted(p.name for c in conditions for p in (ROOT / "results/partial").glob(f"test_{c}.json"))
+    done = sorted(p.name for c in conditions for p in (ROOT / "results").glob(f"test_{c}.json"))
+    if not refreeze:  # a re-freeze (amendment) may follow an interrupted pass, never a completed one
+        done += sorted(p.name for c in conditions for p in (ROOT / "results/partial").glob(f"test_{c}.json"))
     if done:
         raise SystemExit(f"test-partition results already exist ({done}); a freeze must precede any test evaluation")
     libs, detail = {}, {}
@@ -87,7 +88,10 @@ def build(test_salt, conditions=CONDITIONS):
         "retrieval": {"budget_tokens": evolve.RETRIEVAL_BUDGET, "max_skills": evolve.MAX_SKILLS,
                       "order": "newest-first within scope", "dedup": True},
         "ledger_summary": {"entries": len(ledger), "tokens_by_stage": dict(tok)},
-        "statement": "No test-partition evaluation has been run at freeze time.",
+        "statement": (f"Re-freeze under PROTOCOL {refreeze}: interrupted test passes exist as results/partial/ and are "
+                      "resumed with the same salt; no test pass has completed." if refreeze
+                      else "No test-partition evaluation has been run at freeze time."),
+        "refreeze_amendment": refreeze,
     }
 
 
@@ -96,8 +100,9 @@ def main():
     ap.add_argument("--test-salt", required=True)
     ap.add_argument("--conditions", default="global,scoped", help="comma list; the A5 rich arms use global-rich,scoped-rich")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--refreeze", default=None, help="amendment id (e.g. A6) for a re-freeze after an interrupted pass")
     a = ap.parse_args()
-    out = build(a.test_salt, tuple(c.strip() for c in a.conditions.split(",") if c.strip()))
+    out = build(a.test_salt, tuple(c.strip() for c in a.conditions.split(",") if c.strip()), a.refreeze)
     text = json.dumps(out, indent=2)
     if a.dry_run:
         print(text[:4000])

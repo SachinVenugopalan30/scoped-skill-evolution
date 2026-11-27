@@ -58,6 +58,7 @@ WORKERS = int(os.environ.get("SSE_WORKERS", "2"))  # Docker has 8 GB; 3 is safe 
 REPAIR_TIMEOUT = 1200      # seconds per Claude run; overrides the vendor's CLAUDE_TIMEOUT (600)
 PIP_TIMEOUT = 300          # seconds for `pip install -e .`; emulated amd64 builds exceed 120 s on large repos
 KEEP_IMAGES = os.environ.get("SSE_KEEP_IMAGES") == "1"  # debug: leave benchmark images in place
+CONTAINER_MEM = os.environ.get("SSE_CONTAINER_MEM", "")  # e.g. "1536m": per-container RAM cap on a shared host (unset: no cap)
 MIN_FREE_GB = float(os.environ.get("SSE_MIN_FREE_GB", "30"))  # refuse to pull/start below this much host disk
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 # Images confirmed unavailable at 2026-11-24 (results/image_access.json; `docker manifest inspect` on all 184).
@@ -340,6 +341,14 @@ RATE_LIMIT_SLEEPS = (60, 120)  # seconds before the 1st and 2nd retry (rate limi
 WAF_RE = re.compile(r"asu error page", re.I)
 
 
+def proxy_ok():
+    """True iff the local repair proxy answers its health check (it is the agent's only route to the model)."""
+    try:
+        return urllib.request.urlopen(f"http://{PROXY_HOST}:{PROXY_PORT}/health/liveliness", timeout=5).status == 200
+    except Exception:
+        return False
+
+
 def endpoint_ok():
     """One tiny direct call to the hosted model. True iff it answers, i.e. the endpoint itself is up."""
     try:
@@ -436,6 +445,9 @@ def run_repair(inst, findings, model=REPAIR_MODEL):
         ensure_image(iid)
         img_ok = True
         session.start()
+        if CONTAINER_MEM:  # a memory-hungry repo is OOM-killed inside its own container, not the host's proxy or services
+            subprocess.run(["docker", "update", "--memory", CONTAINER_MEM, "--memory-swap", CONTAINER_MEM,
+                            session.container_id], capture_output=True, text=True)
         setup_claude_in_container(session)
         ver = session.run_command(["su", "-", "agent", "-s", "/bin/bash", "-c", f"{CLAUDE_BIN} --version"], timeout=60)
         res["claude_version"] = ver.stdout.strip() or None
@@ -555,13 +567,14 @@ def repair_pr(inst, findings, model=REPAIR_MODEL, fresh=False, salt=None):
             if r.get("error") and (r.get("rate_limited") or r.get("transient")
                                    or RATE_LIMIT_RE.search(str(r["error"])) or TRANSIENT_RE.search(str(r["error"]))):
                 if rate_retries >= len(RATE_LIMIT_SLEEPS):
-                    if WAF_RE.search(str(r["error"])) and endpoint_ok():
-                        # The endpoint answers a plain request, so this is ASU's WAF blocking this PR's repair
-                        # prompt, not an outage: an infrastructure error for this PR (excluded from the gate,
-                        # failed in the primary metric), never a reason to stop the whole run.
-                        print(f"repair prompt blocked by endpoint WAF on {inst['instance_id']}; recording an infra error")
-                        return {**r, "error": f"blocked by endpoint WAF: {scrub(str(r['error']))[:300]}",
-                                "content_blocked": True}
+                    if proxy_ok() and endpoint_ok():
+                        # The proxy and the endpoint both answer, so the failure is specific to this PR (ASU's WAF
+                        # blocking its prompt, a repo that exhausts its container, ...), not an outage: an
+                        # infrastructure error for this PR (excluded from the gate, failed in the primary metric),
+                        # never a reason to stop the whole run. Not cached, so a later resume retries it.
+                        kind = "blocked by endpoint WAF" if WAF_RE.search(str(r["error"])) else "persistent per-PR failure"
+                        print(f"{kind} on {inst['instance_id']}; recording an infra error")
+                        return {**r, "error": f"{kind}: {scrub(str(r['error']))[:300]}", "content_blocked": True}
                     raise FatalRunError(f"transient/rate-limited failure on {inst['instance_id']} after "
                                         f"{rate_retries} retries: {scrub(str(r['error']))[:300]}")
                 delay = RATE_LIMIT_SLEEPS[rate_retries]
