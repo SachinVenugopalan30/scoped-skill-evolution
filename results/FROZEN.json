@@ -1,0 +1,407 @@
+{
+  "frozen_at_utc": "2026-11-27T05:51:34+00:00",
+  "code_sha": "8eb2e31b59edcde421633bda1d71eb6e9a6b7a4b",
+  "code_manifest": {
+    "harness.py": "ac0b304dc05ad112a9b12170cade6f647fa5c78b3da1b5bcd142bca21f0ebead",
+    "evolve.py": "7d231b7ecfe41bcb6db7018b1f0df0889c96de6aaad5614ab135c90c611dc7cf",
+    "reviewer.py": "715f547e2c02b412be050201f1e09b92e1b72e36154f314471b57561401adce6",
+    "data.py": "87217447dbc3432ea71bf0ddea722f1ebf344916c989abd234839e6e165b0c7a",
+    "proxy_hooks.py": "54085f7f4deade6ea3a0f02eb57153e9ea7ab485714055ea66e50f552c77beed"
+  },
+  "harness_version": "5",
+  "model": "openai/qwen36-27b",
+  "repair_model": "qwen36-27b",
+  "endpoint": "https://openai.rc.asu.edu/v1",
+  "split_seed": 2685,
+  "development_ids": [
+    "sympy__sympy-11818@ab1bcd5",
+    "dbt-labs__dbt-core-7186@c6b5b12",
+    "skypilot-org__skypilot-1489@1430d74",
+    "sympy__sympy-18605@a356458",
+    "apache__airflow-26766@cf0c9a6",
+    "skypilot-org__skypilot-1427@b01cb79",
+    "ansible__ansible-27435@da1a331",
+    "keephq__keep-1984@e524fe8",
+    "ansible__ansible-62373@30950ec",
+    "keephq__keep-4568@aaa03de",
+    "apache__airflow-32366@52228da",
+    "numpy__numpy-22997@8c57716",
+    "ansible__ansible-44951@91cfd5c",
+    "pandas-dev__pandas-16744@b8a6007",
+    "numpy__numpy-15425@e603b5f",
+    "huggingface__accelerate-255@12e4b18",
+    "microsoft__autogen-2225@9cf65ed",
+    "skypilot-org__skypilot-569@1c4deb7",
+    "freqtrade__freqtrade-5846@da4344d",
+    "sympy__sympy-15346@99fe375",
+    "dbt-labs__dbt-core-8743@fb6f32f",
+    "ansible__ansible-65021@f63c26e",
+    "skypilot-org__skypilot-614@ac824f0",
+    "goauthentik__authentik-13602@50ea3f3",
+    "sympy__sympy-19913@d466e06",
+    "sympy__sympy-19254@8adfdbe",
+    "ansible__ansible-55379@060b0e9",
+    "huggingface__diffusers-792@90385bb",
+    "Lightning-AI__pytorch-lightning-4654@89b962d",
+    "pandas-dev__pandas-28802@33c889c",
+    "microsoft__autogen-4044@e5bddfc",
+    "ansible__ansible-59946@fbe8544",
+    "pandas-dev__pandas-35284@644bdf7",
+    "keephq__keep-100@6a8be21",
+    "sympy__sympy-22369@6eb7e6a",
+    "Avaiga__taipy-1042@a76a34b",
+    "ansible__ansible-56679@5e79e31",
+    "pandas-dev__pandas-55938@b36d8d1",
+    "ManimCommunity__manim-509@1cbc24f",
+    "sympy__sympy-26515@2c01ca9",
+    "conan-io__conan-16942@e62c6eb",
+    "sympy__sympy-27352@b3187d6",
+    "pandas-dev__pandas-42635@59d4145",
+    "huggingface__diffusers-4015@c63a53a",
+    "ansible__ansible-36996@4b45ffc",
+    "voxel51__fiftyone-4236@2af48de",
+    "apache__airflow-16732@8ec4f26",
+    "sympy__sympy-22426@05cec82",
+    "ansible__ansible-54268@403b068",
+    "pandas-dev__pandas-35974@d0a8a68",
+    "numpy__numpy-14924@6a7e3f1",
+    "PostHog__posthog-8874@960dad4",
+    "tobymao__sqlglot-5284@3f57fcd",
+    "dask__dask-7974@88a13f7",
+    "PostHog__posthog-10293@7041fd3",
+    "skypilot-org__skypilot-1144@36893af",
+    "langflow-ai__langflow-918@c710c1c",
+    "pandas-dev__pandas-14737@8e4adbb",
+    "run-llama__llama_index-13413@63620ed",
+    "sympy__sympy-24666@7d194c7",
+    "skypilot-org__skypilot-4067@ff528a5",
+    "ManimCommunity__manim-1140@ed7dc3d",
+    "pandas-dev__pandas-23480@ab05b87",
+    "apache__airflow-8749@161c96c",
+    "pandas-dev__pandas-23866@45e5f06",
+    "ansible__ansible-20646@f695114",
+    "numpy__numpy-12123@1c2abd3",
+    "numba__numba-4282@a062e23",
+    "pandas-dev__pandas-23141@1c22791",
+    "pandas-dev__pandas-23886@d6a2d5b",
+    "pydantic__pydantic-11468@92c01bd",
+    "pandas-dev__pandas-43930@fef88a7",
+    "ansible__ansible-58383@531e457",
+    "ansible__ansible-51415@fb988f5",
+    "PostHog__posthog-4868@1372f68",
+    "ansible__ansible-71136@621cec5",
+    "pandas-dev__pandas-42186@62d46c4",
+    "tobymao__sqlglot-2096@1794bf3",
+    "pandas-dev__pandas-50366@1e7613f",
+    "pandas-dev__pandas-34933@de64663",
+    "sympy__sympy-18630@9ca7e3a",
+    "keephq__keep-3054@2d23bf3",
+    "skypilot-org__skypilot-5435@50d9632",
+    "ManimCommunity__manim-482@f2fd3e3",
+    "ansible__ansible-33909@d516d5b",
+    "skypilot-org__skypilot-727@4fca3da",
+    "ansible__ansible-60622@19d2ad7"
+  ],
+  "selection_ids": [
+    "matplotlib__matplotlib-30199@b5dfb32",
+    "scikit-learn__scikit-learn-9802@5c7da54",
+    "marimo-team__marimo-4080@8a73f89",
+    "certbot__certbot-9076@01f570d",
+    "mlflow__mlflow-1658@3f53b0b",
+    "scikit-learn__scikit-learn-12822@c451532",
+    "scikit-learn__scikit-learn-29442@3a19575",
+    "gradio-app__gradio-3275@067f582",
+    "scikit-learn__scikit-learn-15277@594e3a6",
+    "geldata__gel-5130@2e5341f",
+    "networkx__networkx-4134@3b27fe2",
+    "matplotlib__matplotlib-26151@c6a1bf5",
+    "networkx__networkx-5305@072b960",
+    "python-telegram-bot__python-telegram-bot-3514@d5c0a5c",
+    "geldata__gel-6352@24b4f19",
+    "optuna__optuna-972@1f4813a",
+    "modin-project__modin-4215@69f9652",
+    "hpcaitech__ColossalAI-4080@dc82ade",
+    "matplotlib__matplotlib-17892@cb25841",
+    "xorbitsai__inference-2079@5ae18b2",
+    "jina-ai__serve-1256@2f495e3",
+    "huggingface__datasets-586@034c1c0",
+    "networkx__networkx-4602@b2da108",
+    "scikit-learn__scikit-learn-29401@819e167",
+    "xorbitsai__inference-1168@f3ada96",
+    "networkx__networkx-7159@7e65b7d",
+    "matplotlib__matplotlib-27172@9f80d55",
+    "scrapy__scrapy-2456@c7bb2fa",
+    "ray-project__ray-49918@04cf1ee",
+    "optuna__optuna-1087@4177569",
+    "scikit-learn__scikit-learn-23548@cc5e175",
+    "python-telegram-bot__python-telegram-bot-4168@96ca73d",
+    "certbot__certbot-7270@65f464e",
+    "hpcaitech__ColossalAI-6059@802df11"
+  ],
+  "test_ids": [
+    "OpenMined__PySyft-4522@776c2e8",
+    "PrefectHQ__prefect-18444@1ffae47",
+    "RasaHQ__rasa-5341@d8b1c24",
+    "RasaHQ__rasa-7797@3d69847",
+    "ccxt__ccxt-14582@83f50a7",
+    "ccxt__ccxt-14830@1d1701f",
+    "ccxt__ccxt-16729@284cdce",
+    "cvat-ai__cvat-4062@ff04d8f",
+    "deepset-ai__haystack-1413@fc3b61a",
+    "deepset-ai__haystack-1604@78e9795",
+    "deepset-ai__haystack-3488@e07a8b3",
+    "deepset-ai__haystack-3546@a260299",
+    "deepset-ai__haystack-5284@60a39ef",
+    "deepset-ai__haystack-8457@2dd3777",
+    "frappe__frappe-13065@dfc23eb",
+    "frappe__frappe-16877@e78a251",
+    "getmoto__moto-7406@26efd90",
+    "getsentry__sentry-71711@d1652c4",
+    "getsentry__sentry-71942@a4f03f3",
+    "home-assistant__core-110255@a9d173a",
+    "home-assistant__core-142977@fa60db7",
+    "home-assistant__core-146453@71eab0c",
+    "iterative__dvc-2596@37847e7",
+    "netbox-community__netbox-10171@249b8b0",
+    "netbox-community__netbox-13373@1d02196",
+    "netbox-community__netbox-14047@0ec158d",
+    "netbox-community__netbox-17674@1507840",
+    "netbox-community__netbox-7662@7c147db",
+    "pwndbg__pwndbg-2075@3d3a319",
+    "pyg-team__pytorch_geometric-4635@498dbbf",
+    "python__mypy-14517@78b0f55",
+    "python__mypy-15353@65efb01",
+    "python__mypy-6781@3a824fb",
+    "python__mypy-6803@8e6a9b8",
+    "python__mypy-9629@13dc4d2",
+    "pytorch__vision-2596@8859151",
+    "pytorch__vision-2988@7ea166d",
+    "pytorch__vision-4457@231054c",
+    "pytorch__vision-8316@92ec2fb",
+    "qutebrowser__qutebrowser-3590@872cff2",
+    "qutebrowser__qutebrowser-7003@3656345",
+    "saleor__saleor-4617@9c2907b",
+    "saleor__saleor-5085@f8ed729",
+    "saleor__saleor-5611@a2d5871",
+    "scipy__scipy-13893@4fcbd8b",
+    "scipy__scipy-20393@c92a476",
+    "sqlfluff__sqlfluff-2121@d0d52a4",
+    "sqlfluff__sqlfluff-494@554c74a",
+    "sqlfluff__sqlfluff-541@c5a16c3",
+    "sqlfluff__sqlfluff-865@9e69af8",
+    "zulip__zulip-22583@37ae377",
+    "zulip__zulip-25349@67de2a4"
+  ],
+  "test_excluded": {
+    "no_image": [],
+    "oversize": [
+      "PrefectHQ__prefect-14313@d428713",
+      "deepset-ai__haystack-92@accd8b1",
+      "hummingbot__hummingbot-4889@d8a242a"
+    ]
+  },
+  "test_salt": "test-1",
+  "calibration": {
+    "n_repeats": 5,
+    "salts": [
+      "calib-1",
+      "calib-2",
+      "calib-3",
+      "calib-4",
+      "calib-5"
+    ],
+    "nets_primary": [
+      5,
+      2,
+      2,
+      2
+    ],
+    "nets_all": [
+      5,
+      2,
+      2,
+      2,
+      -3,
+      -3,
+      -3,
+      0,
+      0,
+      0
+    ],
+    "net_abs_p95_primary": 4.549999999999999,
+    "tau": 5,
+    "tau_all_pairs_sensitivity": 5,
+    "flip_rate": 0.23529411764705882,
+    "n_flipped_prs": 8
+  },
+  "operating_gate": {
+    "min_gain": 1,
+    "max_regress": 1,
+    "why": "PROTOCOL A1: calibrated tau reported as sensitivity"
+  },
+  "final_run_flags": {
+    "dev_n": 87,
+    "sel_n": 34,
+    "rounds": 5,
+    "gate_min_gain": 1,
+    "gate_max_regress": 1,
+    "stop_after_rejections": 2,
+    "seed": 0,
+    "salt": "static-v1",
+    "amendments": [
+      "A1",
+      "A2",
+      "A3",
+      "A4",
+      "A5"
+    ]
+  },
+  "libraries": {
+    "global": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "scoped": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0"
+  },
+  "library_detail": {
+    "global": {
+      "snapshot": "results/skills/global/round_2.json",
+      "rounds_evaluated": 2,
+      "skills": [],
+      "accepted": 0,
+      "rejected": 2,
+      "rounds": [
+        {
+          "round": 1,
+          "accept": false,
+          "gained": 1,
+          "regressed": 5,
+          "net": -4,
+          "note": null,
+          "edits": [
+            {
+              "op": "add",
+              "scope": "global",
+              "text": "Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical flaws (undefined variables, incorrect API usage) over stylistic or documentation issues. Ensure proposed fixes are syntactically correct and address the root cause, not just symptoms. Avoid suggesting changes that introduce new errors or rely on undefined context."
+            }
+          ],
+          "run_id": "70a77883",
+          "dev_passed_comments": 26
+        },
+        {
+          "round": 2,
+          "accept": false,
+          "gained": 1,
+          "regressed": 4,
+          "net": -3,
+          "note": null,
+          "edits": [
+            {
+              "op": "add",
+              "scope": "global",
+              "text": "Verify type consistency in set operations and API calls. Ensure operands support required operators (e.g., convert dict_keys to set before union). Validate that function arguments match expected types and that return values are handled correctly according to documentation (e.g., error codes like -1 vs 0). Check for missing imports and undefined variables in all code paths."
+            }
+          ],
+          "run_id": "70a77883",
+          "dev_passed_comments": 26
+        }
+      ]
+    },
+    "scoped": {
+      "snapshot": "results/skills/scoped/round_4.json",
+      "rounds_evaluated": 4,
+      "skills": [
+        {
+          "id": "s1",
+          "scope": "global",
+          "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings.",
+          "order": 1
+        }
+      ],
+      "accepted": 1,
+      "rejected": 3,
+      "rounds": [
+        {
+          "round": 1,
+          "accept": false,
+          "gained": 0,
+          "regressed": 3,
+          "net": -3,
+          "note": null,
+          "edits": [
+            {
+              "op": "add",
+              "scope": "global",
+              "text": "Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect API usage, and type mismatches. Avoid nitpicking documentation or style unless it causes runtime failure. Ensure findings are distinct and actionable."
+            }
+          ],
+          "run_id": "fcfcff2c",
+          "dev_passed_comments": 26
+        },
+        {
+          "round": 2,
+          "accept": true,
+          "gained": 2,
+          "regressed": 1,
+          "net": 1,
+          "note": null,
+          "edits": [
+            {
+              "op": "add",
+              "scope": "global",
+              "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings."
+            }
+          ],
+          "run_id": "5733d42c",
+          "dev_passed_comments": 26
+        },
+        {
+          "round": 3,
+          "accept": false,
+          "gained": 1,
+          "regressed": 1,
+          "net": 0,
+          "note": null,
+          "edits": [
+            {
+              "op": "add",
+              "scope": "global",
+              "text": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator usage, error codes), variables are defined before use, and tests assert outcomes rather than implementation details. Ensure imports are present and types are handled correctly."
+            }
+          ],
+          "run_id": "ca5fa18d",
+          "dev_passed_comments": 21
+        },
+        {
+          "round": 4,
+          "accept": false,
+          "gained": 0,
+          "regressed": 2,
+          "net": -2,
+          "note": null,
+          "edits": [
+            {
+              "op": "add",
+              "scope": "global",
+              "text": "Verify variable scope and initialization order to prevent UnboundLocalError. Ensure conditional branches define variables before use. Check that API calls handle empty inputs gracefully (e.g., defaulting to 'all' instead of empty results). Validate that error handling returns appropriate HTTP status codes (500 for server errors, not 200) and avoids leaking sensitive stack traces to clients."
+            }
+          ],
+          "run_id": "ca5fa18d",
+          "dev_passed_comments": 21
+        }
+      ]
+    }
+  },
+  "retrieval": {
+    "budget_tokens": 400,
+    "max_skills": 6,
+    "order": "newest-first within scope",
+    "dedup": true
+  },
+  "ledger_summary": {
+    "entries": 1511,
+    "tokens_by_stage": {
+      "repair": 279976319,
+      "review": 3598547,
+      "optimizer": 89800
+    }
+  },
+  "statement": "No test-partition evaluation has been run at freeze time."
+}
