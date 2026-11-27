@@ -581,6 +581,22 @@ from the timing.
 
 **Evidence used.** Run logs, stop reasons and the host memory log. No test outcome informed the decision.
 
+
+### A7 — 2026-11-27 (rich-feedback arms withdrawn before any result)
+
+**Decision changed.** The exploratory `global-rich` and `scoped-rich` arms pre-registered in A5 are withdrawn. They
+were never run: no rich-arm evolution round, selection evaluation or test evaluation exists. The decision was made
+on 2026-11-27 for time and compute reasons, after the main test pass was interrupted and had to be resumed (A6),
+which left too little time before the deadline to evolve, freeze and score two more arms.
+
+**What remains in the repository.** The rich-feedback code path (`--condition *-rich`, inactive for the main
+conditions), the development-only category labels (`results/gold_categories_dev.json`) and the blind labelling sheet
+are kept for future work. The report mentions rich feedback only as future work, without results, because there are
+none.
+
+**Evidence used.** Time remaining and the A6 run logs. No rich-arm data exists, and no test outcome informed this
+decision.
+
 ---
 
 ## 18. Approximate timeline
