@@ -1,0 +1,534 @@
+{
+  "generated_utc": "2026-11-27T18:56:50+00:00",
+  "script": "analyze_final.py",
+  "partition": "test",
+  "conditions": [
+    "static",
+    "global",
+    "scoped"
+  ],
+  "n_test_prs": {
+    "static": 52,
+    "global": 52,
+    "scoped": 52
+  },
+  "n_test_comments": {
+    "static": 70,
+    "global": 70,
+    "scoped": 70
+  },
+  "same_pr_set": true,
+  "config": {
+    "bootstrap_resamples": 10000,
+    "permutations": 10000,
+    "seed": 0,
+    "cluster": "repository",
+    "alpha": 0.05,
+    "exact_max_discordant": 25,
+    "primary_metric": "comment-level pass rate, errors as failed",
+    "primary_contrast": "scoped - global (two-sided)"
+  },
+  "primary_contrast": {
+    "role": "primary",
+    "a": "scoped",
+    "b": "global",
+    "rate_a": 0.12857142857142856,
+    "rate_b": 0.18571428571428572,
+    "diff": -0.05714285714285714,
+    "diff_pp": -5.714285714285714,
+    "diff_ci95": {
+      "lo": -0.15492957746478872,
+      "hi": 0.043478260869565216
+    },
+    "diff_ci95_pp": {
+      "lo": -15.492957746478872,
+      "hi": 4.3478260869565215
+    },
+    "n_pairs": 70,
+    "n_repos": 21,
+    "permutation_p": 0.44415558444155584,
+    "mcnemar": {
+      "a_only": 5,
+      "b_only": 9,
+      "discordant": 14,
+      "method": "exact_binomial",
+      "p": 0.4239501953125
+    },
+    "prs_compared": 52,
+    "prs_gained": 3,
+    "prs_lost": 5,
+    "note": "exact McNemar; primary permutation p is the pre-registered test"
+  },
+  "contrasts": [
+    {
+      "role": "primary",
+      "a": "scoped",
+      "b": "global",
+      "rate_a": 0.12857142857142856,
+      "rate_b": 0.18571428571428572,
+      "diff": -0.05714285714285714,
+      "diff_pp": -5.714285714285714,
+      "diff_ci95": {
+        "lo": -0.15492957746478872,
+        "hi": 0.043478260869565216
+      },
+      "diff_ci95_pp": {
+        "lo": -15.492957746478872,
+        "hi": 4.3478260869565215
+      },
+      "n_pairs": 70,
+      "n_repos": 21,
+      "permutation_p": 0.44415558444155584,
+      "mcnemar": {
+        "a_only": 5,
+        "b_only": 9,
+        "discordant": 14,
+        "method": "exact_binomial",
+        "p": 0.4239501953125
+      },
+      "prs_compared": 52,
+      "prs_gained": 3,
+      "prs_lost": 5,
+      "note": "exact McNemar; primary permutation p is the pre-registered test"
+    },
+    {
+      "role": "secondary",
+      "a": "global",
+      "b": "static",
+      "rate_a": 0.18571428571428572,
+      "rate_b": 0.18571428571428572,
+      "diff": 0.0,
+      "diff_pp": 0.0,
+      "diff_ci95": {
+        "lo": 0.0,
+        "hi": 0.0
+      },
+      "diff_ci95_pp": {
+        "lo": 0.0,
+        "hi": 0.0
+      },
+      "n_pairs": 70,
+      "n_repos": 21,
+      "permutation_p": 1.0,
+      "mcnemar": {
+        "a_only": 0,
+        "b_only": 0,
+        "discordant": 0,
+        "method": "none",
+        "p": 1.0
+      },
+      "prs_compared": 52,
+      "prs_gained": 0,
+      "prs_lost": 0
+    },
+    {
+      "role": "secondary",
+      "a": "scoped",
+      "b": "static",
+      "rate_a": 0.12857142857142856,
+      "rate_b": 0.18571428571428572,
+      "diff": -0.05714285714285714,
+      "diff_pp": -5.714285714285714,
+      "diff_ci95": {
+        "lo": -0.15492957746478872,
+        "hi": 0.043478260869565216
+      },
+      "diff_ci95_pp": {
+        "lo": -15.492957746478872,
+        "hi": 4.3478260869565215
+      },
+      "n_pairs": 70,
+      "n_repos": 21,
+      "permutation_p": 0.44415558444155584,
+      "mcnemar": {
+        "a_only": 5,
+        "b_only": 9,
+        "discordant": 14,
+        "method": "exact_binomial",
+        "p": 0.4239501953125
+      },
+      "prs_compared": 52,
+      "prs_gained": 3,
+      "prs_lost": 5,
+      "note": "exact McNemar; primary permutation p is the pre-registered test"
+    }
+  ],
+  "condition_metrics": {
+    "static": {
+      "condition": "static",
+      "partition": "test",
+      "n_prs": 52,
+      "n_prs_requested": 52,
+      "n_prs_done": 52,
+      "n_comments": 70,
+      "comments_source": "comments",
+      "n_repos": 21,
+      "n_errors": 5,
+      "error_rate": 0.09615384615384616,
+      "error_comments": 8,
+      "passed_comments": 13,
+      "pass_rate": 0.18571428571428572,
+      "ci95": {
+        "lo": 0.10810810810810811,
+        "hi": 0.2777777777777778
+      },
+      "pass_rate_excl_errors": 0.20967741935483872,
+      "pr_all_pass": {
+        "n_prs": 52,
+        "n_errors": 5,
+        "n_all_pass": 9,
+        "rate_errors_as_failed": 0.17307692307692307,
+        "rate_excl_errors": 0.19148936170212766
+      },
+      "by_pr_type": {
+        "bug_fix": {
+          "n_prs": 19,
+          "n_comments": 23,
+          "passed": 7,
+          "rate": 0.30434782608695654,
+          "pr_all_pass_rate": 0.2631578947368421
+        },
+        "feature": {
+          "n_prs": 24,
+          "n_comments": 37,
+          "passed": 6,
+          "rate": 0.16216216216216217,
+          "pr_all_pass_rate": 0.16666666666666666
+        },
+        "other": {
+          "n_prs": 9,
+          "n_comments": 10,
+          "passed": 0,
+          "rate": 0.0,
+          "pr_all_pass_rate": 0.0
+        }
+      },
+      "cost": {
+        "tokens": 27122073,
+        "prompt_tokens": 26910283,
+        "completion_tokens": 211790,
+        "duration_s": 20957.3,
+        "duration_recorded": true,
+        "tokens_per_pr": 521578.32692307694,
+        "tokens_per_comment": 387458.1857142857,
+        "tokens_per_passing_review": 3013563.6666666665,
+        "tokens_per_passing_comment": 2086313.3076923077,
+        "seconds_per_pr": 403.025,
+        "seconds_per_passing_review": 2328.588888888889,
+        "cost_usd": null
+      },
+      "retrieval": {
+        "library_size": 0,
+        "library_scopes": {},
+        "reviews": 52,
+        "reviews_with_skills": 0,
+        "mean_skills_per_review": 0.0,
+        "max_skills_per_review": 0,
+        "cap6_reviews": 0,
+        "count_histogram": {
+          "0": 52
+        },
+        "retrievals_total": 0,
+        "per_skill": {},
+        "retrievals_by_scope": {}
+      },
+      "evolution": {
+        "source": "results/static_selection.json",
+        "accepted_edits": 0,
+        "rounds_evaluated": 0,
+        "regressions_per_accepted_edit": null,
+        "net_gain_per_accepted_edit": null,
+        "rejected_edits": 0,
+        "selection_rate": 0.21428571428571427,
+        "selection_rate_source": "static_selection"
+      },
+      "selection_transfer": {
+        "selection_rate": 0.21428571428571427,
+        "test_rate": 0.18571428571428572,
+        "gap": -0.028571428571428553,
+        "gap_pp": -2.8571428571428554,
+        "note": "transfer diagnostic only; selection is never reported as held-out performance"
+      },
+      "provenance": {
+        "file": "results/test_static.json",
+        "salt": "test-1",
+        "code_sha": "8b2daf662a06218789fa041ce150aafecb7df109",
+        "library_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "library_size": 0,
+        "harness_version": "5",
+        "model": "openai/qwen36-27b",
+        "seed": 0,
+        "n_requested": 52,
+        "n_done": 52
+      },
+      "warnings": [
+        "PROVENANCE: code_sha differs from FROZEN.json"
+      ],
+      "scored_summary": {
+        "pass_rate_errors_as_failed": 0.18571428571428572,
+        "n_comments": 70,
+        "passed": 13
+      }
+    },
+    "global": {
+      "condition": "global",
+      "partition": "test",
+      "n_prs": 52,
+      "n_prs_requested": 52,
+      "n_prs_done": 52,
+      "n_comments": 70,
+      "comments_source": "comments",
+      "n_repos": 21,
+      "n_errors": 5,
+      "error_rate": 0.09615384615384616,
+      "error_comments": 8,
+      "passed_comments": 13,
+      "pass_rate": 0.18571428571428572,
+      "ci95": {
+        "lo": 0.10810810810810811,
+        "hi": 0.2777777777777778
+      },
+      "pass_rate_excl_errors": 0.20967741935483872,
+      "pr_all_pass": {
+        "n_prs": 52,
+        "n_errors": 5,
+        "n_all_pass": 9,
+        "rate_errors_as_failed": 0.17307692307692307,
+        "rate_excl_errors": 0.19148936170212766
+      },
+      "by_pr_type": {
+        "bug_fix": {
+          "n_prs": 19,
+          "n_comments": 23,
+          "passed": 7,
+          "rate": 0.30434782608695654,
+          "pr_all_pass_rate": 0.2631578947368421
+        },
+        "feature": {
+          "n_prs": 24,
+          "n_comments": 37,
+          "passed": 6,
+          "rate": 0.16216216216216217,
+          "pr_all_pass_rate": 0.16666666666666666
+        },
+        "other": {
+          "n_prs": 9,
+          "n_comments": 10,
+          "passed": 0,
+          "rate": 0.0,
+          "pr_all_pass_rate": 0.0
+        }
+      },
+      "cost": {
+        "tokens": 27122034,
+        "prompt_tokens": 26910283,
+        "completion_tokens": 211751,
+        "duration_s": 2053.0,
+        "duration_recorded": true,
+        "tokens_per_pr": 521577.57692307694,
+        "tokens_per_comment": 387457.6285714286,
+        "tokens_per_passing_review": 3013559.3333333335,
+        "tokens_per_passing_comment": 2086310.3076923077,
+        "seconds_per_pr": 39.48076923076923,
+        "seconds_per_passing_review": 228.11111111111111,
+        "cost_usd": null
+      },
+      "retrieval": {
+        "library_size": 0,
+        "library_scopes": {},
+        "reviews": 52,
+        "reviews_with_skills": 0,
+        "mean_skills_per_review": 0.0,
+        "max_skills_per_review": 0,
+        "cap6_reviews": 0,
+        "count_histogram": {
+          "0": 52
+        },
+        "retrievals_total": 0,
+        "per_skill": {},
+        "retrievals_by_scope": {}
+      },
+      "evolution": {
+        "source": "results/analysis/evolution_summary.json",
+        "rounds_evaluated": 2,
+        "accepted_edits": 0,
+        "accepted_edits_gated": 0,
+        "rejected_edits": 2,
+        "regressions": 9,
+        "gains": 2,
+        "regressions_per_accepted_edit": null,
+        "net_gain_per_accepted_edit": null,
+        "selection_rate": 0.2381,
+        "selection_rate_source": "evolution_rounds",
+        "rejected_rounds": 2
+      },
+      "selection_transfer": {
+        "selection_rate": 0.2381,
+        "test_rate": 0.18571428571428572,
+        "gap": -0.052385714285714285,
+        "gap_pp": -5.238571428571428,
+        "note": "transfer diagnostic only; selection is never reported as held-out performance"
+      },
+      "provenance": {
+        "file": "results/test_global.json",
+        "salt": "test-1",
+        "code_sha": "8b2daf662a06218789fa041ce150aafecb7df109",
+        "library_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "library_size": 0,
+        "harness_version": "5",
+        "model": "openai/qwen36-27b",
+        "seed": 0,
+        "n_requested": 52,
+        "n_done": 52
+      },
+      "warnings": [
+        "PROVENANCE: code_sha differs from FROZEN.json"
+      ],
+      "scored_summary": {
+        "pass_rate_errors_as_failed": 0.18571428571428572,
+        "n_comments": 70,
+        "passed": 13
+      }
+    },
+    "scoped": {
+      "condition": "scoped",
+      "partition": "test",
+      "n_prs": 52,
+      "n_prs_requested": 52,
+      "n_prs_done": 52,
+      "n_comments": 70,
+      "comments_source": "comments",
+      "n_repos": 21,
+      "n_errors": 6,
+      "error_rate": 0.11538461538461539,
+      "error_comments": 6,
+      "passed_comments": 9,
+      "pass_rate": 0.12857142857142856,
+      "ci95": {
+        "lo": 0.05263157894736842,
+        "hi": 0.21568627450980393
+      },
+      "pass_rate_excl_errors": 0.140625,
+      "pr_all_pass": {
+        "n_prs": 52,
+        "n_errors": 6,
+        "n_all_pass": 7,
+        "rate_errors_as_failed": 0.1346153846153846,
+        "rate_excl_errors": 0.15217391304347827
+      },
+      "by_pr_type": {
+        "bug_fix": {
+          "n_prs": 19,
+          "n_comments": 23,
+          "passed": 6,
+          "rate": 0.2608695652173913,
+          "pr_all_pass_rate": 0.2631578947368421
+        },
+        "feature": {
+          "n_prs": 24,
+          "n_comments": 37,
+          "passed": 2,
+          "rate": 0.05405405405405406,
+          "pr_all_pass_rate": 0.08333333333333333
+        },
+        "other": {
+          "n_prs": 9,
+          "n_comments": 10,
+          "passed": 1,
+          "rate": 0.1,
+          "pr_all_pass_rate": 0.0
+        }
+      },
+      "cost": {
+        "tokens": 33078503,
+        "prompt_tokens": 32878456,
+        "completion_tokens": 200047,
+        "duration_s": 18305.8,
+        "duration_recorded": true,
+        "tokens_per_pr": 636125.0576923077,
+        "tokens_per_comment": 472550.04285714286,
+        "tokens_per_passing_review": 4725500.428571428,
+        "tokens_per_passing_comment": 3675389.222222222,
+        "seconds_per_pr": 352.0346153846154,
+        "seconds_per_passing_review": 2615.1142857142854,
+        "cost_usd": null
+      },
+      "retrieval": {
+        "library_size": 1,
+        "library_scopes": {
+          "global": 1
+        },
+        "reviews": 52,
+        "reviews_with_skills": 52,
+        "mean_skills_per_review": 1.0,
+        "max_skills_per_review": 1,
+        "cap6_reviews": 0,
+        "count_histogram": {
+          "0": 0,
+          "1": 52
+        },
+        "retrievals_total": 52,
+        "per_skill": {
+          "s1": 52
+        },
+        "retrievals_by_scope": {
+          "global": 52
+        }
+      },
+      "evolution": {
+        "source": "results/analysis/evolution_summary.json",
+        "rounds_evaluated": 4,
+        "accepted_edits": 1,
+        "accepted_edits_gated": 1,
+        "rejected_edits": 3,
+        "regressions": 7,
+        "gains": 3,
+        "regressions_per_accepted_edit": 1.0,
+        "net_gain_per_accepted_edit": 1.0,
+        "selection_rate": 0.2619,
+        "selection_rate_source": "evolution_rounds",
+        "rejected_rounds": 3
+      },
+      "selection_transfer": {
+        "selection_rate": 0.2619,
+        "test_rate": 0.12857142857142856,
+        "gap": -0.13332857142857146,
+        "gap_pp": -13.332857142857147,
+        "note": "transfer diagnostic only; selection is never reported as held-out performance"
+      },
+      "provenance": {
+        "file": "results/test_scoped.json",
+        "salt": "test-1",
+        "code_sha": "8b2daf662a06218789fa041ce150aafecb7df109",
+        "library_sha256": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+        "library_size": 1,
+        "harness_version": "5",
+        "model": "openai/qwen36-27b",
+        "seed": 0,
+        "n_requested": 52,
+        "n_done": 52
+      },
+      "warnings": [
+        "PROVENANCE: code_sha differs from FROZEN.json"
+      ],
+      "scored_summary": {
+        "pass_rate_errors_as_failed": 0.12857142857142856,
+        "n_comments": 70,
+        "passed": 9
+      }
+    }
+  },
+  "evolution_summary_source": "/home/sachin/scoped-skill-evolution/results/analysis/evolution_summary.json",
+  "notes": [
+    "The scored outputs are the only test-partition artifacts read: no diffs, comment text or gold labels are loaded. Outputs go only to --out-dir (default results/analysis).",
+    "Token counts are the combined review+repair usage recorded per PR in the scored file; the per-stage split lives in runs/ledger.jsonl.",
+    "Wall-clock duration comes from the scored file; duration_recorded=false means it was 0 and wall-clock metrics are reported as null.",
+    "Retrieval is summarized from the test PRs' skill_ids (ids only); token-budget saturation is not recorded in the scored output, so only the cap-6 hit count is available.",
+    "Selection pass rates are a transfer diagnostic, never held-out performance."
+  ],
+  "warnings": [
+    "static: PROVENANCE: code_sha differs from FROZEN.json",
+    "global: PROVENANCE: code_sha differs from FROZEN.json",
+    "scoped: PROVENANCE: code_sha differs from FROZEN.json"
+  ]
+}

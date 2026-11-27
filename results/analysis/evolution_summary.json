@@ -1,0 +1,1463 @@
+{
+  "generated_by": "analyze_evolution.py",
+  "generated_at": "2026-11-27T18:56:47+00:00",
+  "out_dir": "/home/sachin/scoped-skill-evolution/results/analysis",
+  "conditions": [
+    "global",
+    "scoped"
+  ],
+  "sources": {
+    "global": {
+      "path": "/home/sachin/scoped-skill-evolution/results/evolution/global.jsonl",
+      "exists": true,
+      "n_lines": 5,
+      "n_records": 5,
+      "n_rounds": 2,
+      "malformed_lines": 0,
+      "unknown_records": 0
+    },
+    "scoped": {
+      "path": "/home/sachin/scoped-skill-evolution/results/evolution/scoped.jsonl",
+      "exists": true,
+      "n_lines": 14,
+      "n_records": 14,
+      "n_rounds": 4,
+      "malformed_lines": 0,
+      "unknown_records": 0
+    },
+    "global-rich": {
+      "path": "/home/sachin/scoped-skill-evolution/results/evolution/global-rich.jsonl",
+      "exists": false,
+      "n_lines": 0,
+      "n_records": 0,
+      "n_rounds": 0,
+      "malformed_lines": 0,
+      "unknown_records": 0
+    },
+    "scoped-rich": {
+      "path": "/home/sachin/scoped-skill-evolution/results/evolution/scoped-rich.jsonl",
+      "exists": false,
+      "n_lines": 0,
+      "n_records": 0,
+      "n_rounds": 0,
+      "malformed_lines": 0,
+      "unknown_records": 0
+    }
+  },
+  "rounds": [
+    {
+      "condition": "global",
+      "round": 1,
+      "run_id": "70a77883",
+      "threshold": {
+        "min_gain": 1,
+        "max_regress": 1
+      },
+      "harness_version": "5",
+      "model": "openai/qwen36-27b",
+      "salt": "static-v1",
+      "edits_detail": [
+        {
+          "op": "add",
+          "scope": "global",
+          "id": null,
+          "text": "Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical flaws (undefined variables, incorrect API usage) over stylistic or documentation issues. Ensure proposed fixes are syntactically correct and address the root cause, not just symptoms. Avoid suggesting changes that introduce new errors or rely on undefined context.",
+          "text_short": "Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical flaws (undefined variables, incor\u2026"
+        }
+      ],
+      "library_scope_counts_before": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_scope_counts_after": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_sha256_after": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "dev_sides": {
+        "dev": {
+          "n_prs": 87,
+          "n_errors": 0,
+          "pr_passed": 18,
+          "pr_rate_errors_as_failed": 0.2069,
+          "pr_rate_complete_case": 0.2069,
+          "n_comments": 107,
+          "comments_passed": 26,
+          "comment_rate_errors_as_failed": 0.243,
+          "comment_rate_excl_errors": 0.243,
+          "tokens": 36519175,
+          "prompt_tokens": 36186487,
+          "completion_tokens": 332688,
+          "duration_s": 0.0
+        },
+        "sel_base": {
+          "n_prs": 34,
+          "n_errors": 0,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 10,
+          "comment_rate_errors_as_failed": 0.2381,
+          "comment_rate_excl_errors": 0.2381,
+          "tokens": 14292430,
+          "prompt_tokens": 14161775,
+          "completion_tokens": 130655,
+          "duration_s": 0.0
+        },
+        "sel_new": {
+          "n_prs": 34,
+          "n_errors": 0,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 5,
+          "comment_rate_errors_as_failed": 0.119,
+          "comment_rate_excl_errors": 0.119,
+          "tokens": 15707893,
+          "prompt_tokens": 15565813,
+          "completion_tokens": 142080,
+          "duration_s": 3351.8
+        }
+      }
+    },
+    {
+      "condition": "global",
+      "round": 2,
+      "run_id": "70a77883",
+      "threshold": {
+        "min_gain": 1,
+        "max_regress": 1
+      },
+      "harness_version": "5",
+      "model": "openai/qwen36-27b",
+      "salt": "static-v1",
+      "edits_detail": [
+        {
+          "op": "add",
+          "scope": "global",
+          "id": null,
+          "text": "Verify type consistency in set operations and API calls. Ensure operands support required operators (e.g., convert dict_keys to set before union). Validate that function arguments match expected types and that return values are handled correctly according to documentation (e.g., error codes like -1 vs 0). Check for missing imports and undefined variables in all code paths.",
+          "text_short": "Verify type consistency in set operations and API calls. Ensure operands support required operators (e.g., convert dict\u2026"
+        }
+      ],
+      "library_scope_counts_before": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_scope_counts_after": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_sha256_after": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "dev_sides": {
+        "dev": {
+          "n_prs": 87,
+          "n_errors": 0,
+          "pr_passed": 18,
+          "pr_rate_errors_as_failed": 0.2069,
+          "pr_rate_complete_case": 0.2069,
+          "n_comments": 107,
+          "comments_passed": 26,
+          "comment_rate_errors_as_failed": 0.243,
+          "comment_rate_excl_errors": 0.243,
+          "tokens": 36519175,
+          "prompt_tokens": 36186487,
+          "completion_tokens": 332688,
+          "duration_s": 0.0
+        },
+        "sel_base": {
+          "n_prs": 34,
+          "n_errors": 0,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 10,
+          "comment_rate_errors_as_failed": 0.2381,
+          "comment_rate_excl_errors": 0.2381,
+          "tokens": 14292430,
+          "prompt_tokens": 14161775,
+          "completion_tokens": 130655,
+          "duration_s": 0.0
+        },
+        "sel_new": {
+          "n_prs": 34,
+          "n_errors": 1,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 8,
+          "comment_rate_errors_as_failed": 0.1905,
+          "comment_rate_excl_errors": 0.1951,
+          "tokens": 15769052,
+          "prompt_tokens": 15604818,
+          "completion_tokens": 164234,
+          "duration_s": 9920.3
+        }
+      }
+    },
+    {
+      "condition": "scoped",
+      "round": 1,
+      "run_id": "fcfcff2c",
+      "threshold": {
+        "min_gain": 1,
+        "max_regress": 1
+      },
+      "harness_version": "5",
+      "model": "openai/qwen36-27b",
+      "salt": "static-v1",
+      "edits_detail": [
+        {
+          "op": "add",
+          "scope": "global",
+          "id": null,
+          "text": "Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect API usage, and type mismatches. Avoid nitpicking documentation or style unless it causes runtime failure. Ensure findings are distinct and actionable.",
+          "text_short": "Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect API usage, and type mismatches\u2026"
+        }
+      ],
+      "library_scope_counts_before": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_scope_counts_after": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_sha256_after": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "dev_sides": {
+        "dev": {
+          "n_prs": 87,
+          "n_errors": 0,
+          "pr_passed": 18,
+          "pr_rate_errors_as_failed": 0.2069,
+          "pr_rate_complete_case": 0.2069,
+          "n_comments": 107,
+          "comments_passed": 26,
+          "comment_rate_errors_as_failed": 0.243,
+          "comment_rate_excl_errors": 0.243,
+          "tokens": 36519175,
+          "prompt_tokens": 36186487,
+          "completion_tokens": 332688,
+          "duration_s": 0.0
+        },
+        "sel_base": {
+          "n_prs": 34,
+          "n_errors": 0,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 10,
+          "comment_rate_errors_as_failed": 0.2381,
+          "comment_rate_excl_errors": 0.2381,
+          "tokens": 14292430,
+          "prompt_tokens": 14161775,
+          "completion_tokens": 130655,
+          "duration_s": 0.0
+        },
+        "sel_new": {
+          "n_prs": 34,
+          "n_errors": 2,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 8,
+          "comment_rate_errors_as_failed": 0.1905,
+          "comment_rate_excl_errors": 0.2222,
+          "tokens": 11016134,
+          "prompt_tokens": 10886311,
+          "completion_tokens": 129823,
+          "duration_s": 0.6
+        }
+      }
+    },
+    {
+      "condition": "scoped",
+      "round": 2,
+      "run_id": "5733d42c",
+      "threshold": {
+        "min_gain": 1,
+        "max_regress": 1
+      },
+      "harness_version": "5",
+      "model": "openai/qwen36-27b",
+      "salt": "static-v1",
+      "edits_detail": [
+        {
+          "op": "add",
+          "scope": "global",
+          "id": null,
+          "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings.",
+          "text_short": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values ar\u2026"
+        }
+      ],
+      "library_scope_counts_before": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_scope_counts_after": {
+        "global": 1,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_sha256_after": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+      "dev_sides": {
+        "dev": {
+          "n_prs": 87,
+          "n_errors": 0,
+          "pr_passed": 18,
+          "pr_rate_errors_as_failed": 0.2069,
+          "pr_rate_complete_case": 0.2069,
+          "n_comments": 107,
+          "comments_passed": 26,
+          "comment_rate_errors_as_failed": 0.243,
+          "comment_rate_excl_errors": 0.243,
+          "tokens": 36519175,
+          "prompt_tokens": 36186487,
+          "completion_tokens": 332688,
+          "duration_s": 0.0
+        },
+        "sel_base": {
+          "n_prs": 34,
+          "n_errors": 0,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 10,
+          "comment_rate_errors_as_failed": 0.2381,
+          "comment_rate_excl_errors": 0.2381,
+          "tokens": 14292430,
+          "prompt_tokens": 14161775,
+          "completion_tokens": 130655,
+          "duration_s": 0.0
+        },
+        "sel_new": {
+          "n_prs": 34,
+          "n_errors": 1,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 11,
+          "comment_rate_errors_as_failed": 0.2619,
+          "comment_rate_excl_errors": 0.2683,
+          "tokens": 15071629,
+          "prompt_tokens": 14948279,
+          "completion_tokens": 123350,
+          "duration_s": 11628.5
+        }
+      }
+    },
+    {
+      "condition": "scoped",
+      "round": 3,
+      "run_id": "ca5fa18d",
+      "threshold": {
+        "min_gain": 1,
+        "max_regress": 1
+      },
+      "harness_version": "5",
+      "model": "openai/qwen36-27b",
+      "salt": "static-v1",
+      "edits_detail": [
+        {
+          "op": "add",
+          "scope": "global",
+          "id": null,
+          "text": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator usage, error codes), variables are defined before use, and tests assert outcomes rather than implementation details. Ensure imports are present and types are handled correctly.",
+          "text_short": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator u\u2026"
+        }
+      ],
+      "library_scope_counts_before": {
+        "global": 1,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_scope_counts_after": {
+        "global": 1,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_sha256_after": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+      "dev_sides": {
+        "dev": {
+          "n_prs": 87,
+          "n_errors": 2,
+          "pr_passed": 18,
+          "pr_rate_errors_as_failed": 0.2069,
+          "pr_rate_complete_case": 0.2118,
+          "n_comments": 107,
+          "comments_passed": 21,
+          "comment_rate_errors_as_failed": 0.1963,
+          "comment_rate_excl_errors": 0.2,
+          "tokens": 39214952,
+          "prompt_tokens": 38865845,
+          "completion_tokens": 349107,
+          "duration_s": 0.2
+        },
+        "sel_base": {
+          "n_prs": 34,
+          "n_errors": 1,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 11,
+          "comment_rate_errors_as_failed": 0.2619,
+          "comment_rate_excl_errors": 0.2683,
+          "tokens": 15071629,
+          "prompt_tokens": 14948279,
+          "completion_tokens": 123350,
+          "duration_s": 0.0
+        },
+        "sel_new": {
+          "n_prs": 34,
+          "n_errors": 1,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 13,
+          "comment_rate_errors_as_failed": 0.3095,
+          "comment_rate_excl_errors": 0.3171,
+          "tokens": 13105554,
+          "prompt_tokens": 12968346,
+          "completion_tokens": 137208,
+          "duration_s": 9250.2
+        }
+      }
+    },
+    {
+      "condition": "scoped",
+      "round": 4,
+      "run_id": "ca5fa18d",
+      "threshold": {
+        "min_gain": 1,
+        "max_regress": 1
+      },
+      "harness_version": "5",
+      "model": "openai/qwen36-27b",
+      "salt": "static-v1",
+      "edits_detail": [
+        {
+          "op": "add",
+          "scope": "global",
+          "id": null,
+          "text": "Verify variable scope and initialization order to prevent UnboundLocalError. Ensure conditional branches define variables before use. Check that API calls handle empty inputs gracefully (e.g., defaulting to 'all' instead of empty results). Validate that error handling returns appropriate HTTP status codes (500 for server errors, not 200) and avoids leaking sensitive stack traces to clients.",
+          "text_short": "Verify variable scope and initialization order to prevent UnboundLocalError. Ensure conditional branches define variabl\u2026"
+        }
+      ],
+      "library_scope_counts_before": {
+        "global": 1,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_scope_counts_after": {
+        "global": 1,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "library_sha256_after": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+      "dev_sides": {
+        "dev": {
+          "n_prs": 87,
+          "n_errors": 2,
+          "pr_passed": 18,
+          "pr_rate_errors_as_failed": 0.2069,
+          "pr_rate_complete_case": 0.2118,
+          "n_comments": 107,
+          "comments_passed": 21,
+          "comment_rate_errors_as_failed": 0.1963,
+          "comment_rate_excl_errors": 0.2,
+          "tokens": 39214952,
+          "prompt_tokens": 38865845,
+          "completion_tokens": 349107,
+          "duration_s": 0.0
+        },
+        "sel_base": {
+          "n_prs": 34,
+          "n_errors": 1,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 11,
+          "comment_rate_errors_as_failed": 0.2619,
+          "comment_rate_excl_errors": 0.2683,
+          "tokens": 15071629,
+          "prompt_tokens": 14948279,
+          "completion_tokens": 123350,
+          "duration_s": 0.0
+        },
+        "sel_new": {
+          "n_prs": 34,
+          "n_errors": 1,
+          "pr_passed": null,
+          "pr_rate_errors_as_failed": null,
+          "pr_rate_complete_case": null,
+          "n_comments": 42,
+          "comments_passed": 10,
+          "comment_rate_errors_as_failed": 0.2381,
+          "comment_rate_excl_errors": 0.2439,
+          "tokens": 15399480,
+          "prompt_tokens": 15244176,
+          "completion_tokens": 155304,
+          "duration_s": 9664.3
+        }
+      }
+    }
+  ],
+  "table": [
+    {
+      "condition": "global",
+      "round": 1,
+      "run_id": "70a77883",
+      "gated": true,
+      "edits_count": 1,
+      "edits": "add[global]: Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical fla\u2026",
+      "accepted": false,
+      "gained": 1,
+      "regressed": 5,
+      "net": -4,
+      "gate_excluded": 0,
+      "dev_n_prs": 87,
+      "dev_n_errors": 0,
+      "dev_pr_passed": 18,
+      "dev_pr_rate_errors_as_failed": 0.2069,
+      "dev_pr_rate_complete_case": 0.2069,
+      "dev_comment_passed": 26,
+      "dev_comment_total": 107,
+      "dev_comment_rate_errors_as_failed": 0.243,
+      "dev_comment_rate_excl_errors": 0.243,
+      "sel_base_pr_rate_errors_as_failed": null,
+      "sel_base_pr_rate_complete_case": null,
+      "sel_new_pr_rate_errors_as_failed": null,
+      "sel_new_pr_rate_complete_case": null,
+      "sel_base_comment_passed": 10,
+      "sel_base_comment_total": 42,
+      "sel_base_comment_rate_errors_as_failed": 0.2381,
+      "sel_base_comment_rate_excl_errors": 0.2381,
+      "sel_new_comment_passed": 5,
+      "sel_new_comment_total": 42,
+      "sel_new_comment_rate_errors_as_failed": 0.119,
+      "sel_new_comment_rate_excl_errors": 0.119,
+      "library_before": 0,
+      "library_after": 0,
+      "tokens": 66519498,
+      "duration_s": 3351.8,
+      "cost_usd": 0.0,
+      "note": null
+    },
+    {
+      "condition": "global",
+      "round": 2,
+      "run_id": "70a77883",
+      "gated": true,
+      "edits_count": 1,
+      "edits": "add[global]: Verify type consistency in set operations and API calls. Ensure operands support required\u2026",
+      "accepted": false,
+      "gained": 1,
+      "regressed": 4,
+      "net": -3,
+      "gate_excluded": 1,
+      "dev_n_prs": 87,
+      "dev_n_errors": 0,
+      "dev_pr_passed": 18,
+      "dev_pr_rate_errors_as_failed": 0.2069,
+      "dev_pr_rate_complete_case": 0.2069,
+      "dev_comment_passed": 26,
+      "dev_comment_total": 107,
+      "dev_comment_rate_errors_as_failed": 0.243,
+      "dev_comment_rate_excl_errors": 0.243,
+      "sel_base_pr_rate_errors_as_failed": null,
+      "sel_base_pr_rate_complete_case": null,
+      "sel_new_pr_rate_errors_as_failed": null,
+      "sel_new_pr_rate_complete_case": null,
+      "sel_base_comment_passed": 10,
+      "sel_base_comment_total": 42,
+      "sel_base_comment_rate_errors_as_failed": 0.2381,
+      "sel_base_comment_rate_excl_errors": 0.2381,
+      "sel_new_comment_passed": 8,
+      "sel_new_comment_total": 42,
+      "sel_new_comment_rate_errors_as_failed": 0.1905,
+      "sel_new_comment_rate_excl_errors": 0.1951,
+      "library_before": 0,
+      "library_after": 0,
+      "tokens": 66580657,
+      "duration_s": 9920.3,
+      "cost_usd": 0.0,
+      "note": null
+    },
+    {
+      "condition": "scoped",
+      "round": 1,
+      "run_id": "fcfcff2c",
+      "gated": true,
+      "edits_count": 1,
+      "edits": "add[global]: Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect \u2026",
+      "accepted": false,
+      "gained": 0,
+      "regressed": 3,
+      "net": -3,
+      "gate_excluded": 2,
+      "dev_n_prs": 87,
+      "dev_n_errors": 0,
+      "dev_pr_passed": 18,
+      "dev_pr_rate_errors_as_failed": 0.2069,
+      "dev_pr_rate_complete_case": 0.2069,
+      "dev_comment_passed": 26,
+      "dev_comment_total": 107,
+      "dev_comment_rate_errors_as_failed": 0.243,
+      "dev_comment_rate_excl_errors": 0.243,
+      "sel_base_pr_rate_errors_as_failed": null,
+      "sel_base_pr_rate_complete_case": null,
+      "sel_new_pr_rate_errors_as_failed": null,
+      "sel_new_pr_rate_complete_case": null,
+      "sel_base_comment_passed": 10,
+      "sel_base_comment_total": 42,
+      "sel_base_comment_rate_errors_as_failed": 0.2381,
+      "sel_base_comment_rate_excl_errors": 0.2381,
+      "sel_new_comment_passed": 8,
+      "sel_new_comment_total": 42,
+      "sel_new_comment_rate_errors_as_failed": 0.1905,
+      "sel_new_comment_rate_excl_errors": 0.2222,
+      "library_before": 0,
+      "library_after": 0,
+      "tokens": 61827739,
+      "duration_s": 0.6,
+      "cost_usd": 0.0,
+      "note": null
+    },
+    {
+      "condition": "scoped",
+      "round": 2,
+      "run_id": "5733d42c",
+      "gated": true,
+      "edits_count": 1,
+      "edits": "add[global]: Validate API contract compliance: ensure arguments match expected types, keys exist befor\u2026",
+      "accepted": true,
+      "gained": 2,
+      "regressed": 1,
+      "net": 1,
+      "gate_excluded": 1,
+      "dev_n_prs": 87,
+      "dev_n_errors": 0,
+      "dev_pr_passed": 18,
+      "dev_pr_rate_errors_as_failed": 0.2069,
+      "dev_pr_rate_complete_case": 0.2069,
+      "dev_comment_passed": 26,
+      "dev_comment_total": 107,
+      "dev_comment_rate_errors_as_failed": 0.243,
+      "dev_comment_rate_excl_errors": 0.243,
+      "sel_base_pr_rate_errors_as_failed": null,
+      "sel_base_pr_rate_complete_case": null,
+      "sel_new_pr_rate_errors_as_failed": null,
+      "sel_new_pr_rate_complete_case": null,
+      "sel_base_comment_passed": 10,
+      "sel_base_comment_total": 42,
+      "sel_base_comment_rate_errors_as_failed": 0.2381,
+      "sel_base_comment_rate_excl_errors": 0.2381,
+      "sel_new_comment_passed": 11,
+      "sel_new_comment_total": 42,
+      "sel_new_comment_rate_errors_as_failed": 0.2619,
+      "sel_new_comment_rate_excl_errors": 0.2683,
+      "library_before": 0,
+      "library_after": 1,
+      "tokens": 65883234,
+      "duration_s": 11628.5,
+      "cost_usd": 0.0,
+      "note": null
+    },
+    {
+      "condition": "scoped",
+      "round": 3,
+      "run_id": "ca5fa18d",
+      "gated": true,
+      "edits_count": 1,
+      "edits": "add[global]: Verify semantic correctness of logic, not just syntax. Check that API calls match expecte\u2026",
+      "accepted": false,
+      "gained": 1,
+      "regressed": 1,
+      "net": 0,
+      "gate_excluded": 2,
+      "dev_n_prs": 87,
+      "dev_n_errors": 2,
+      "dev_pr_passed": 18,
+      "dev_pr_rate_errors_as_failed": 0.2069,
+      "dev_pr_rate_complete_case": 0.2118,
+      "dev_comment_passed": 21,
+      "dev_comment_total": 107,
+      "dev_comment_rate_errors_as_failed": 0.1963,
+      "dev_comment_rate_excl_errors": 0.2,
+      "sel_base_pr_rate_errors_as_failed": null,
+      "sel_base_pr_rate_complete_case": null,
+      "sel_new_pr_rate_errors_as_failed": null,
+      "sel_new_pr_rate_complete_case": null,
+      "sel_base_comment_passed": 11,
+      "sel_base_comment_total": 42,
+      "sel_base_comment_rate_errors_as_failed": 0.2619,
+      "sel_base_comment_rate_excl_errors": 0.2683,
+      "sel_new_comment_passed": 13,
+      "sel_new_comment_total": 42,
+      "sel_new_comment_rate_errors_as_failed": 0.3095,
+      "sel_new_comment_rate_excl_errors": 0.3171,
+      "library_before": 1,
+      "library_after": 1,
+      "tokens": 67392135,
+      "duration_s": 9250.4,
+      "cost_usd": 0.0,
+      "note": null
+    },
+    {
+      "condition": "scoped",
+      "round": 4,
+      "run_id": "ca5fa18d",
+      "gated": true,
+      "edits_count": 1,
+      "edits": "add[global]: Verify variable scope and initialization order to prevent UnboundLocalError. Ensure condi\u2026",
+      "accepted": false,
+      "gained": 0,
+      "regressed": 2,
+      "net": -2,
+      "gate_excluded": 2,
+      "dev_n_prs": 87,
+      "dev_n_errors": 2,
+      "dev_pr_passed": 18,
+      "dev_pr_rate_errors_as_failed": 0.2069,
+      "dev_pr_rate_complete_case": 0.2118,
+      "dev_comment_passed": 21,
+      "dev_comment_total": 107,
+      "dev_comment_rate_errors_as_failed": 0.1963,
+      "dev_comment_rate_excl_errors": 0.2,
+      "sel_base_pr_rate_errors_as_failed": null,
+      "sel_base_pr_rate_complete_case": null,
+      "sel_new_pr_rate_errors_as_failed": null,
+      "sel_new_pr_rate_complete_case": null,
+      "sel_base_comment_passed": 11,
+      "sel_base_comment_total": 42,
+      "sel_base_comment_rate_errors_as_failed": 0.2619,
+      "sel_base_comment_rate_excl_errors": 0.2683,
+      "sel_new_comment_passed": 10,
+      "sel_new_comment_total": 42,
+      "sel_new_comment_rate_errors_as_failed": 0.2381,
+      "sel_new_comment_rate_excl_errors": 0.2439,
+      "library_before": 1,
+      "library_after": 1,
+      "tokens": 69686061,
+      "duration_s": 9664.3,
+      "cost_usd": 0.0,
+      "note": null
+    }
+  ],
+  "curves": {
+    "global": {
+      "rounds": [
+        1,
+        2
+      ],
+      "dev_comment_rate_errors_as_failed": [
+        0.243,
+        0.243
+      ],
+      "dev_comment_rate_excl_errors": [
+        0.243,
+        0.243
+      ],
+      "dev_pr_rate_errors_as_failed": [
+        0.2069,
+        0.2069
+      ],
+      "sel_base_comment_rate_errors_as_failed": [
+        0.2381,
+        0.2381
+      ],
+      "sel_new_comment_rate_errors_as_failed": [
+        0.119,
+        0.1905
+      ],
+      "sel_base_comment_rate_excl_errors": [
+        0.2381,
+        0.2381
+      ],
+      "sel_new_comment_rate_excl_errors": [
+        0.119,
+        0.1951
+      ],
+      "library_size": [
+        0,
+        0
+      ],
+      "cumulative_accepted_edits": [
+        0,
+        0
+      ],
+      "cumulative_proposed_edits": [
+        1,
+        2
+      ]
+    },
+    "scoped": {
+      "rounds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "dev_comment_rate_errors_as_failed": [
+        0.243,
+        0.243,
+        0.1963,
+        0.1963
+      ],
+      "dev_comment_rate_excl_errors": [
+        0.243,
+        0.243,
+        0.2,
+        0.2
+      ],
+      "dev_pr_rate_errors_as_failed": [
+        0.2069,
+        0.2069,
+        0.2069,
+        0.2069
+      ],
+      "sel_base_comment_rate_errors_as_failed": [
+        0.2381,
+        0.2381,
+        0.2619,
+        0.2619
+      ],
+      "sel_new_comment_rate_errors_as_failed": [
+        0.1905,
+        0.2619,
+        0.3095,
+        0.2381
+      ],
+      "sel_base_comment_rate_excl_errors": [
+        0.2381,
+        0.2381,
+        0.2683,
+        0.2683
+      ],
+      "sel_new_comment_rate_excl_errors": [
+        0.2222,
+        0.2683,
+        0.3171,
+        0.2439
+      ],
+      "library_size": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "cumulative_accepted_edits": [
+        0,
+        1,
+        1,
+        1
+      ],
+      "cumulative_proposed_edits": [
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  },
+  "libraries": {
+    "global": [
+      {
+        "round": 0,
+        "size": 0,
+        "scopes": {
+          "global": 0,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "source": "library_before of the first analysed round"
+      },
+      {
+        "round": 1,
+        "size": 0,
+        "scopes": {
+          "global": 0,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "accepted": false,
+        "source": "library_after"
+      },
+      {
+        "round": 2,
+        "size": 0,
+        "scopes": {
+          "global": 0,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "accepted": false,
+        "source": "library_after"
+      }
+    ],
+    "scoped": [
+      {
+        "round": 0,
+        "size": 0,
+        "scopes": {
+          "global": 0,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "source": "library_before of the first analysed round"
+      },
+      {
+        "round": 1,
+        "size": 0,
+        "scopes": {
+          "global": 0,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "accepted": false,
+        "source": "library_after"
+      },
+      {
+        "round": 2,
+        "size": 1,
+        "scopes": {
+          "global": 1,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "sha256": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+        "accepted": true,
+        "source": "library_after"
+      },
+      {
+        "round": 3,
+        "size": 1,
+        "scopes": {
+          "global": 1,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "sha256": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+        "accepted": false,
+        "source": "library_after"
+      },
+      {
+        "round": 4,
+        "size": 1,
+        "scopes": {
+          "global": 1,
+          "bug_fix": 0,
+          "feature": 0,
+          "other": 0,
+          "unknown": 0
+        },
+        "sha256": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0",
+        "accepted": false,
+        "source": "library_after"
+      }
+    ]
+  },
+  "accepted_edits": [
+    {
+      "condition": "scoped",
+      "round": 2,
+      "op": "add",
+      "scope": "global",
+      "id": null,
+      "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings.",
+      "text_short": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing i\u2026",
+      "gained": 2,
+      "regressed": 1,
+      "net": 1,
+      "library_size_after": 1,
+      "run_id": "5733d42c"
+    }
+  ],
+  "rejected_edits": [
+    {
+      "condition": "global",
+      "round": 1,
+      "op": "add",
+      "scope": "global",
+      "id": null,
+      "text": "Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical flaws (undefined variables, incorrect API usage) over stylistic or documentation issues. Ensure proposed fixes are syntactically correct and address the root cause, not just symptoms. Avoid suggesting changes that introduce new errors or rely on undefined context.",
+      "text_short": "Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical flaws (undefined variables, incorrect API usage) over stylistic or docume\u2026",
+      "gained": 1,
+      "regressed": 5,
+      "net": -4,
+      "library_size_after": 0,
+      "run_id": "70a77883",
+      "reason": "gate rejected"
+    },
+    {
+      "condition": "global",
+      "round": 2,
+      "op": "add",
+      "scope": "global",
+      "id": null,
+      "text": "Verify type consistency in set operations and API calls. Ensure operands support required operators (e.g., convert dict_keys to set before union). Validate that function arguments match expected types and that return values are handled correctly according to documentation (e.g., error codes like -1 vs 0). Check for missing imports and undefined variables in all code paths.",
+      "text_short": "Verify type consistency in set operations and API calls. Ensure operands support required operators (e.g., convert dict_keys to set before union). Validate tha\u2026",
+      "gained": 1,
+      "regressed": 4,
+      "net": -3,
+      "library_size_after": 0,
+      "run_id": "70a77883",
+      "reason": "gate rejected"
+    },
+    {
+      "condition": "scoped",
+      "round": 1,
+      "op": "add",
+      "scope": "global",
+      "id": null,
+      "text": "Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect API usage, and type mismatches. Avoid nitpicking documentation or style unless it causes runtime failure. Ensure findings are distinct and actionable.",
+      "text_short": "Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect API usage, and type mismatches. Avoid nitpicking documentation or styl\u2026",
+      "gained": 0,
+      "regressed": 3,
+      "net": -3,
+      "library_size_after": 0,
+      "run_id": "fcfcff2c",
+      "reason": "gate rejected"
+    },
+    {
+      "condition": "scoped",
+      "round": 3,
+      "op": "add",
+      "scope": "global",
+      "id": null,
+      "text": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator usage, error codes), variables are defined before use, and tests assert outcomes rather than implementation details. Ensure imports are present and types are handled correctly.",
+      "text_short": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator usage, error codes), variables are define\u2026",
+      "gained": 1,
+      "regressed": 1,
+      "net": 0,
+      "library_size_after": 1,
+      "run_id": "ca5fa18d",
+      "reason": "gate rejected"
+    },
+    {
+      "condition": "scoped",
+      "round": 4,
+      "op": "add",
+      "scope": "global",
+      "id": null,
+      "text": "Verify variable scope and initialization order to prevent UnboundLocalError. Ensure conditional branches define variables before use. Check that API calls handle empty inputs gracefully (e.g., defaulting to 'all' instead of empty results). Validate that error handling returns appropriate HTTP status codes (500 for server errors, not 200) and avoids leaking sensitive stack traces to clients.",
+      "text_short": "Verify variable scope and initialization order to prevent UnboundLocalError. Ensure conditional branches define variables before use. Check that API calls hand\u2026",
+      "gained": 0,
+      "regressed": 2,
+      "net": -2,
+      "library_size_after": 1,
+      "run_id": "ca5fa18d",
+      "reason": "gate rejected"
+    }
+  ],
+  "conditions_summary": {
+    "global": {
+      "condition": "global",
+      "log_path": "/home/sachin/scoped-skill-evolution/results/evolution/global.jsonl",
+      "n_rounds": 2,
+      "rounds": [
+        1,
+        2
+      ],
+      "first_round": 1,
+      "last_round": 2,
+      "edits_proposed": 2,
+      "edits_accepted": 0,
+      "accepted_rounds": 0,
+      "rejected_rounds": 2,
+      "edits_accepted_gated": 0,
+      "edits_accepted_ungated": 0,
+      "gated_rounds": 2,
+      "ungated_rounds": 0,
+      "gate_totals": {
+        "gained": 2,
+        "regressed": 9,
+        "net": -7,
+        "excluded_prs": 1
+      },
+      "regressions_per_accepted_edit": null,
+      "net_gain_per_accepted_edit": null,
+      "regressions_per_accepted_round": null,
+      "skillopt_sensitivity": {
+        "rule": "gained >= 1 and regressed <= 1 (not the net gate)",
+        "accepted_rounds": [],
+        "n_accepted_rounds": 0,
+        "simulated_library_size": 0,
+        "simulated_library": [],
+        "note": "Library chain simulated from the recorded edits; its pass rates are not re-evaluated"
+      },
+      "selection_to_dev_gap": {
+        "per_round": [
+          {
+            "round": 1,
+            "sel_new_minus_dev": -0.124,
+            "sel_base_minus_dev": -0.0049
+          },
+          {
+            "round": 2,
+            "sel_new_minus_dev": -0.0525,
+            "sel_base_minus_dev": -0.0049
+          }
+        ],
+        "mean": -0.0882,
+        "final": -0.0525
+      },
+      "totals": {
+        "tokens": 133100155,
+        "duration_s": 13272.1,
+        "cost_usd": 0.0
+      },
+      "dev_errors_total": 0,
+      "library_size_start": 0,
+      "library_size_final": 0,
+      "final_library_scopes": {
+        "global": 0,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "final_library": [],
+      "run_id": "70a77883",
+      "latest_header": {
+        "run_id": "70a77883",
+        "condition": "global",
+        "seed": 0,
+        "gated": true,
+        "resumed_from": 0,
+        "salt": "static-v1",
+        "gate": {
+          "min_gain": 1,
+          "max_regress": 1
+        },
+        "excluded": {
+          "development": {
+            "no_image": 2,
+            "oversize": 3
+          },
+          "selection": {
+            "no_image": 1,
+            "oversize": 2
+          }
+        }
+      },
+      "n_headers": 2,
+      "n_headers_earlier": 1,
+      "rounds_per_run": {
+        "70a77883": 2
+      },
+      "terminal_records": [
+        {
+          "run_id": "70a77883",
+          "aborted": null,
+          "stopped": "stop-after-rejections",
+          "round": 2
+        }
+      ],
+      "malformed_lines": 0,
+      "unknown_records": 0,
+      "duplicate_rounds_collapsed": 0,
+      "final_dev_comment_ci95": [
+        0.1716,
+        0.3322
+      ],
+      "final_dev_pr_ci95": [
+        0.1351,
+        0.3035
+      ]
+    },
+    "scoped": {
+      "condition": "scoped",
+      "log_path": "/home/sachin/scoped-skill-evolution/results/evolution/scoped.jsonl",
+      "n_rounds": 4,
+      "rounds": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "first_round": 1,
+      "last_round": 4,
+      "edits_proposed": 4,
+      "edits_accepted": 1,
+      "accepted_rounds": 1,
+      "rejected_rounds": 3,
+      "edits_accepted_gated": 1,
+      "edits_accepted_ungated": 0,
+      "gated_rounds": 4,
+      "ungated_rounds": 0,
+      "gate_totals": {
+        "gained": 3,
+        "regressed": 7,
+        "net": -4,
+        "excluded_prs": 7
+      },
+      "regressions_per_accepted_edit": 1.0,
+      "net_gain_per_accepted_edit": 1.0,
+      "regressions_per_accepted_round": 1.0,
+      "skillopt_sensitivity": {
+        "rule": "gained >= 1 and regressed <= 1 (not the net gate)",
+        "accepted_rounds": [
+          {
+            "round": 2,
+            "gained": 2,
+            "regressed": 1,
+            "net": 1,
+            "edits": 1,
+            "simulated_library_size": 1
+          },
+          {
+            "round": 3,
+            "gained": 1,
+            "regressed": 1,
+            "net": 0,
+            "edits": 1,
+            "simulated_library_size": 2
+          }
+        ],
+        "n_accepted_rounds": 2,
+        "simulated_library_size": 2,
+        "simulated_library": [
+          {
+            "id": "sim1",
+            "scope": "global",
+            "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings."
+          },
+          {
+            "id": "sim2",
+            "scope": "global",
+            "text": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator usage, error codes), variables are defined before use, and tests assert outcomes rather than implementation details. Ensure imports are present and types are handled correctly."
+          }
+        ],
+        "note": "Library chain simulated from the recorded edits; its pass rates are not re-evaluated"
+      },
+      "selection_to_dev_gap": {
+        "per_round": [
+          {
+            "round": 1,
+            "sel_new_minus_dev": -0.0525,
+            "sel_base_minus_dev": -0.0049
+          },
+          {
+            "round": 2,
+            "sel_new_minus_dev": 0.0189,
+            "sel_base_minus_dev": -0.0049
+          },
+          {
+            "round": 3,
+            "sel_new_minus_dev": 0.1132,
+            "sel_base_minus_dev": 0.0656
+          },
+          {
+            "round": 4,
+            "sel_new_minus_dev": 0.0418,
+            "sel_base_minus_dev": 0.0656
+          }
+        ],
+        "mean": 0.0303,
+        "final": 0.0418
+      },
+      "totals": {
+        "tokens": 264789169,
+        "duration_s": 30543.8,
+        "cost_usd": 0.0
+      },
+      "dev_errors_total": 4,
+      "library_size_start": 0,
+      "library_size_final": 1,
+      "final_library_scopes": {
+        "global": 1,
+        "bug_fix": 0,
+        "feature": 0,
+        "other": 0,
+        "unknown": 0
+      },
+      "final_library": [
+        {
+          "id": "s1",
+          "scope": "global",
+          "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings."
+        }
+      ],
+      "run_id": "ca5fa18d",
+      "latest_header": {
+        "run_id": "ca5fa18d",
+        "condition": "scoped",
+        "seed": 0,
+        "gated": true,
+        "resumed_from": 2,
+        "salt": "static-v1",
+        "gate": {
+          "min_gain": 1,
+          "max_regress": 1
+        },
+        "excluded": {
+          "development": {
+            "no_image": 2,
+            "oversize": 3
+          },
+          "selection": {
+            "no_image": 1,
+            "oversize": 2
+          }
+        }
+      },
+      "n_headers": 4,
+      "n_headers_earlier": 3,
+      "rounds_per_run": {
+        "fcfcff2c": 1,
+        "5733d42c": 1,
+        "ca5fa18d": 2
+      },
+      "terminal_records": [
+        {
+          "run_id": "fcfcff2c",
+          "aborted": null,
+          "stopped": "stop-after-rejections",
+          "round": 2
+        },
+        {
+          "run_id": "a9b990b4",
+          "aborted": null,
+          "stopped": "stop-after-rejections",
+          "round": 4
+        },
+        {
+          "run_id": "ca5fa18d",
+          "aborted": null,
+          "stopped": "stop-after-rejections",
+          "round": 4
+        }
+      ],
+      "malformed_lines": 0,
+      "unknown_records": 0,
+      "duplicate_rounds_collapsed": 3,
+      "final_dev_comment_ci95": [
+        0.1321,
+        0.2815
+      ],
+      "final_dev_pr_ci95": [
+        0.1351,
+        0.3035
+      ]
+    }
+  },
+  "notes": [
+    "global: 1 earlier run header(s) in the log; only the last one is reported as run metadata.",
+    "scoped: 3 earlier run header(s) in the log; only the last one is reported as run metadata.",
+    "scoped: 3 duplicate round record(s) collapsed to the latest.",
+    "scoped: 2 round(s) come from an earlier run_id than the latest header (resume); they are kept so the curve is continuous."
+  ],
+  "assumptions": [
+    "Only results/evolution/<condition>.jsonl is read (no gold/test data, no network, no Docker).",
+    "A round number repeated in the log keeps its latest record (resume / re-run support); the last run header in the file is reported as the run metadata, and earlier headers are counted, not merged.",
+    "evolve.summarize does not record PR-level pass counts, so selection PR-level rates are empty unless a future record adds passed_prs/prs; selection is reported at comment level (both errors-as-failed and complete-case).",
+    "Complete-case denominators come from the recorded pass_rate_excl_errors values and are not recomputed.",
+    "Regressions/net per accepted edit use gated accepted rounds only: ungated rounds record gained/regressed as null and are counted separately.",
+    "Repo-clustered bootstrap / paired permutation (analyze.py) need per-comment row pairs, which round records do not store; evolution curves therefore report Wilson binomial intervals for the final round, and the primary test-partition inference remains in report_numbers.py/analyze.py.",
+    "library_before/library_after are the sizes of the library lists stored in that record; a resumed run inherits the library from the earlier snapshot, so the curve stays continuous."
+  ],
+  "figures": [
+    "/home/sachin/scoped-skill-evolution/results/analysis/fig_evolution.png",
+    "/home/sachin/scoped-skill-evolution/results/analysis/fig_gate.png"
+  ],
+  "csv_columns": [
+    "condition",
+    "round",
+    "run_id",
+    "gated",
+    "edits_count",
+    "edits",
+    "accepted",
+    "gained",
+    "regressed",
+    "net",
+    "gate_excluded",
+    "dev_n_prs",
+    "dev_n_errors",
+    "dev_pr_passed",
+    "dev_pr_rate_errors_as_failed",
+    "dev_pr_rate_complete_case",
+    "dev_comment_passed",
+    "dev_comment_total",
+    "dev_comment_rate_errors_as_failed",
+    "dev_comment_rate_excl_errors",
+    "sel_base_pr_rate_errors_as_failed",
+    "sel_base_pr_rate_complete_case",
+    "sel_new_pr_rate_errors_as_failed",
+    "sel_new_pr_rate_complete_case",
+    "sel_base_comment_passed",
+    "sel_base_comment_total",
+    "sel_base_comment_rate_errors_as_failed",
+    "sel_base_comment_rate_excl_errors",
+    "sel_new_comment_passed",
+    "sel_new_comment_total",
+    "sel_new_comment_rate_errors_as_failed",
+    "sel_new_comment_rate_excl_errors",
+    "library_before",
+    "library_after",
+    "tokens",
+    "duration_s",
+    "cost_usd",
+    "note"
+  ]
+}

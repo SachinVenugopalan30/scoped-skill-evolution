@@ -6,15 +6,13 @@ Pradnya Sanjeev Nidagundi, Sachin Venugopalan Nair, Aman Shrivastava, Sai Rithwi
 
 Arizona State University
 
-> DRAFT STATUS (2026-11-27). Everything except the locked-test result (Section 5.4 and the sentences that cite
-> it) is written against final numbers. The test pass is resuming on the server under amendment A6; every number
-> that depends on it is marked TODO. Citations use [@key] with the keys
+> DRAFT STATUS (2026-11-27). All sections are written against final numbers, including the locked test pass. Citations use [@key] with the keys
 > from Group22_Progress_Report_ACM/references.bib, so the LaTeX switch is mechanical. Blockquotes like this one
 > are editorial notes; md2acmart.py turns them into LaTeX comments.
 
 ## Abstract
 
-Code review agents do not learn from their past reviews, even when test results later show which comments were useful. We study whether a review agent can improve by turning sanitized test feedback into short textual skills, and whether splitting those skills into global and pull request (PR) type tiers transfers better to unseen repositories than one global library, when both use the same validation gate. We evaluate on c-CRAB, where a review counts as useful if a fixed repair agent acting on it makes a hidden test pass, using repository-disjoint splits and one open model, `qwen36-27b`, as reviewer, optimizer and repair agent. A static reviewer with no skills passes 24.3% of development comments and 21.4% of selection comments. Before evolution we measured the noise the gate must clear: five repeats of the same reviewer on the same 34 selection PRs passed between 9 and 14 of 42 comments, and 8 of 34 PRs changed outcome across repeats. The noise-calibrated gate therefore requires a net gain of 5 PRs, which is larger than any effect one skill edit is likely to produce. We therefore ran evolution under the weaker SkillOpt-style gate (net gain of 1) and report the calibrated gate as a sensitivity analysis. Over six rounds the optimizer proposed six generic, correctness-focused edits, all of them global. The gate accepted one, with a net of +1, which is within the noise band, and the calibrated gate would have rejected all six. The scoped library therefore froze with one global skill and the global library froze empty. TODO: one sentence on the locked-test result. Our main finding is that at this benchmark size, repair noise and not skill organization decides most gate outcomes.
+Code review agents do not learn from their past reviews, even when test results later show which comments were useful. We study whether a review agent can improve by turning sanitized test feedback into short textual skills, and whether splitting those skills into global and pull request (PR) type tiers transfers better to unseen repositories than one global library, when both use the same validation gate. We evaluate on c-CRAB, where a review counts as useful if a fixed repair agent acting on it makes a hidden test pass, using repository-disjoint splits and one open model, `qwen36-27b`, as reviewer, optimizer and repair agent. A static reviewer with no skills passes 24.3% of development comments and 21.4% of selection comments. Before evolution we measured the noise the gate must clear: five repeats of the same reviewer on the same 34 selection PRs passed between 9 and 14 of 42 comments, and 8 of 34 PRs changed outcome across repeats. The noise-calibrated gate therefore requires a net gain of 5 PRs, which is larger than any effect one skill edit is likely to produce. We therefore ran evolution under the weaker SkillOpt-style gate (net gain of 1) and report the calibrated gate as a sensitivity analysis. Over six rounds the optimizer proposed six generic, correctness-focused edits, all of them global. The gate accepted one, with a net of +1, which is within the noise band, and the calibrated gate would have rejected all six. The scoped library therefore froze with one global skill and the global library froze empty. On the locked test set of 70 comments from 21 unseen repositories, the scoped library passed 12.9% of comments against 18.6% for the global library (difference −5.7 points, 95% CI −15.5 to +4.3, permutation p = 0.44). That is no detectable difference, and it points against our hypothesis. Our main finding is that at this benchmark size, repair noise and not skill organization decides most gate outcomes.
 
 **Keywords:** code review, LLM agents, skill evolution, repository shift, validation gating
 
@@ -32,7 +30,7 @@ The protocol also made us measure something the pilot could not: how much the ou
 
 1. a test-guided skill evolution pipeline for code review on c-CRAB, with repository-disjoint splits, a sanitized feedback channel that hides tests and gold comments from the optimizer, and a guarded, single-pass test partition;
 2. a direct measurement of repair noise on the selection set, from five repeated runs of an unchanged reviewer, and the gate threshold it implies;
-3. a controlled comparison of scoped and global skill libraries under a shared gate, scored once on 70 held-out comments from 21 unseen repositories (TODO: result), together with an analysis of what the optimizer actually proposed;
+3. a controlled comparison of scoped and global skill libraries under a shared gate, scored once on 70 held-out comments from 21 unseen repositories, which finds no detectable difference, together with an analysis of what the optimizer actually proposed;
 4. an analysis of why, at this sample size, the gate cannot separate real skill improvements from noise, and what a test of this question would need.
 
 ## 2. Related Work
@@ -184,20 +182,37 @@ Table 4 lists every evaluated round. Global stopped after two rejections. Scoped
 
 ### 5.4 Locked test
 
-> TODO after freeze. Table 5: static / global / scoped: comment pass rate (errors failed) with repo-clustered
-> 95% CI, PR-level rate, errors, complete-case rate. Primary contrast scoped - global: difference, CI,
-> permutation p, McNemar discordant counts. Selection -> test gap per condition. fig_test_comparison.png,
-> fig_transfer.png.
+Each frozen library was scored once on the 52 eligible test PRs (70 comments, 21 repositories), with the same test salt (Table 5).
+
+| Condition | Library | Comments passed | Pass rate (95% CI) | PRs all-pass | Errors | Complete-case rate |
+|---|---|---|---|---|---|---|
+| Static | none | 13 / 70 | 18.6% [10.8, 27.8] | 9 / 52 | 5 | 21.0% |
+| Global | empty | 13 / 70 | 18.6% [10.8, 27.8] | 9 / 52 | 5 | 21.0% |
+| Scoped | 1 global skill | 9 / 70 | 12.9% [5.3, 21.6] | 7 / 52 | 6 | 14.1% |
+
+*Table 5: Locked test pass, comment level, errors counted as failed. The CI is a repository-clustered bootstrap. The complete-case rate excludes the comments of errored PRs.*
+
+![Comment-level pass rate on the locked test partition, with repository-clustered 95% intervals.](fig_test_comparison.png)
+
+**Primary contrast.** Scoped minus global is −5.7 points (95% CI −15.5 to +4.3). The pre-registered paired permutation test across repositories gives p = 0.44. Of the 70 paired comments, 14 are discordant: 5 pass only under scoped and 9 only under global (exact McNemar p = 0.42). At the PR level, scoped gained 3 PRs and lost 5. We find no detectable difference, and the point estimate is in the opposite direction from H1.
+
+**Global equals static.** Their frozen libraries are both empty and they share a test salt, so they share every cached draw. The two results agree on all 70 comments, errors included, which makes "global minus static" exactly zero.
+
+**Errors.** Scoped errored on 6 of 52 PRs (11.5%). That is above the 10% bar in our protocol, so we report the complete-case rate next to the primary one: 14.1% for scoped against 21.0% for global and static. The ordering is the same. Errors come from repairs that time out, exhaust their container, or are blocked by the endpoint's firewall; one PR, `zulip-25349`, was blocked for every condition.
+
+**By PR type.** Scoped passes fewer feature comments than global (2 of 37 against 6 of 37) and fewer bug-fix comments (6 of 23 against 7 of 23), and one more of the 10 *other* comments. The counts are too small to read further.
+
+**Transfer.** Selection overstated test performance for every condition, which is the expected direction for a partition the gate looked at. The gap is −2.9 points for static and −13.3 points for scoped, whose selection estimate (26.2%) comes from the very run that accepted its skill.
+
+![Selection versus test pass rate per condition. Selection is a transfer diagnostic, never held-out performance.](fig_transfer.png)
 
 ### 5.5 Cost
 
 Hosting was free, so we report tokens and wall-clock time instead of dollars. The static baseline used 34.3M tokens on development (about 394k per PR) and 14.2M on selection (about 417k per PR). More than 99% of tokens are prompt tokens of the repair agent, which re-sends its growing context on every agent turn. By the freeze, the ledger held 280M repair tokens, 3.6M review tokens and 0.09M optimizer tokens. On a laptop, one selection pass of 34 PRs took 50 to 55 minutes with three workers, because the amd64 Docker images run under emulation on Apple Silicon. We moved Phase B and the test pass to a 4-core, 8 GB x86 server, where repairs run natively: one repair took 91 s instead of about 230 s. Memory, not CPU, limited the server to two or three parallel repairs (A6).
 
-> TODO: tokens and time per passing review per condition, from the ledger (fig_cost.png).
+On the test pass, the static reviewer used about 3.0M tokens and 39 minutes of evaluation time (review plus repair) per PR that passed all its tests. Scoped used 4.7M tokens and 44 minutes per passing PR. It spent more tokens per PR (636k against 522k, mostly in the repair agent) and passed fewer PRs.
 
 ## 6. Discussion
-
-> TODO: rewrite once results are in. The points below hold regardless of the evolution and test outcomes.
 
 ### 6.1 The gate cannot see effects this small
 
@@ -205,7 +220,7 @@ The calibration shows that our selection set cannot tell a useful skill edit fro
 
 ### 6.2 What our comparison does and does not test
 
-Under amendment A1, both libraries evolve under a permissive gate, so the edits that survive are not filtered for quality. The scoped-versus-global contrast therefore tests how the library is *organized*, not how well a gate *filters* edits. H2, about net gain and regressions per accepted edit, has to be read against the noise band of Section 5.2: a single accepted edit with a net of +1 or +2 is within what two identical runs produce. TODO: interpret the test result in this light.
+Under amendment A1, both libraries evolve under a permissive gate, so the edits that survive are not filtered for quality. The scoped-versus-global contrast therefore tests how the library is *organized*, not how well a gate *filters* edits. H2, about net gain and regressions per accepted edit, has to be read against the noise band of Section 5.2: a single accepted edit with a net of +1 or +2 is within what two identical runs produce. The test result fits this reading. The one edit the gate let through was a generic, global skill accepted on noise. It came out 5 comments worse on development and 4 comments worse on test, so the scoped library ended up worse than the empty library. The scoped arm never wrote a PR-type skill, so this result says nothing for or against scoping as such. It is evidence that a permissive gate on a noisy signal lets weak edits through, and that the optimizer, as built, had nothing better to offer.
 
 ### 6.3 What a real test would need
 
@@ -221,7 +236,7 @@ The model is a 27B open model in all three roles, so our absolute pass rates are
 
 ## 7. Conclusion
 
-We built a test-guided skill evolution pipeline for code review agents, with repository-disjoint splits, a feedback channel that hides tests and gold comments from the optimizer, and a test partition that is scored once. Before evolving anything, we measured how much the selection outcome changes between identical runs, and found it changes by up to 5 of 34 PRs. A gate calibrated to that noise accepts nothing, and a SkillOpt-style gate accepts about a third of edits that change nothing. TODO: one sentence on scoped vs global on the locked test. Whether scoped skills transfer better than global ones remains open; testing it on c-CRAB needs a validation signal several times less noisy than one run per PR.
+We built a test-guided skill evolution pipeline for code review agents, with repository-disjoint splits, a feedback channel that hides tests and gold comments from the optimizer, and a test partition that is scored once. Before evolving anything, we measured how much the selection outcome changes between identical runs, and found it changes by up to 5 of 34 PRs. A gate calibrated to that noise accepts nothing, and a SkillOpt-style gate accepts about a third of edits that change nothing. On 70 held-out comments, the scoped library (one accepted skill) passed 12.9% against 18.6% for the empty global library, a difference we cannot distinguish from zero (p = 0.44), and the optimizer never used the scoping it was offered. Whether scoped skills transfer better than global ones remains open; testing it on c-CRAB needs a validation signal several times less noisy than one run per PR.
 
 ## References
 
