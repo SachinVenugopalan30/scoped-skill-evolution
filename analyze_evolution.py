@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 EVO_DIR = ROOT / "results/evolution"
 DEFAULT_OUT = ROOT / "results/analysis"
-CONDITIONS = ("global", "scoped")
+CONDITIONS = ("global", "scoped", "global-rich", "scoped-rich")
 SCOPES = ("global", "bug_fix", "feature", "other")
 COLORS = {"global": "#1f5fa8", "scoped": "#c0392b"}
 FALLBACK_COLORS = ("#2e8b57", "#8e44ad", "#e67e22", "#16a085")

@@ -37,15 +37,15 @@ def rounds_for(condition, upto):
             for n, r in sorted(by.items()) if n <= upto]
 
 
-def build(test_salt):
+def build(test_salt, conditions=CONDITIONS):
     if git("status", "--porcelain", "--untracked-files=no"):
         raise SystemExit("tracked files are modified: commit first (a dirty tree is refused, PROTOCOL §14)")
-    done = sorted(p.name for p in (ROOT / "results").glob("test_*.json")) + \
-        sorted(p.name for p in (ROOT / "results/partial").glob("test_*.json"))
+    done = sorted(p.name for c in conditions for p in (ROOT / "results").glob(f"test_{c}.json")) + \
+        sorted(p.name for c in conditions for p in (ROOT / "results/partial").glob(f"test_{c}.json"))
     if done:
         raise SystemExit(f"test-partition results already exist ({done}); a freeze must precede any test evaluation")
     libs, detail = {}, {}
-    for c in CONDITIONS:
+    for c in conditions:
         n, lib = evolve.latest_snapshot(c)
         if lib is None:
             raise SystemExit(f"no library snapshot for {c}")
@@ -94,9 +94,10 @@ def build(test_salt):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--test-salt", required=True)
+    ap.add_argument("--conditions", default="global,scoped", help="comma list; the A5 rich arms use global-rich,scoped-rich")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
-    out = build(a.test_salt)
+    out = build(a.test_salt, tuple(c.strip() for c in a.conditions.split(",") if c.strip()))
     text = json.dumps(out, indent=2)
     if a.dry_run:
         print(text[:4000])

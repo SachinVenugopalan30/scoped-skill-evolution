@@ -1,0 +1,345 @@
+instance_id,comment_index,comment_text,label
+goauthentik__authentik-13602@50ea3f3,0,"@user1:
+Is this intended? It should be a rename I think
+
+@author:
+Good catch, didn't notice that it didn't rename the field 
+
+@user1:
+When running makemigrations it should ask whether the field was renamed. If it doesn't, something is fishy
+
+@author:
+It didn't, probably because I added related_name and that was enough to throw it off",
+voxel51__fiftyone-4236@2af48de,0,"@user1:
+@author can you explain why the docs build is causing us problems here? Would love to avoid needing `_FIFTYONE_FORCE_DB_CONNECT_ON_IMPORT` if at all possible
+
+@author:
+Yeah I really hate it also 😫😫
+
+Basically it is a mongoengine problem.
+
+Autodoc tries to go in and touch every member and inherited member of each class. Which includes a field on the mongoengine document called ""objects"" which has a getter that requires the db connection 🤬
+
+So it goes in, the connection has not been made, the ""objects"" getter fails, and then doc build fails.
+
+I tried to play with autodoc settings including to ignore inherited members or specifically skip ""objects"", but didn't come up with anything that worked.
+
+I'll try to think of other solutions, but brainstorming welcome
+
+@user1:
+I see. One way to clean up a bit would be to only call `migrate_database_if_necessary()` inside `establish_db_conn()`.
+
+To limit the number of places that `_FIFTYONE_FORCE_DB_CONNECT_ON_IMPORT` needs to exist.
+
+@user1:
+you tried added `exclude-members` [to the conf](https://github.com/voxel51/fiftyone/blob/85339fcecf03978435fed6fd94565d1c63f58dd6/docs/source/conf.py#L73
+)? 
+
+
+```py
+autodoc_default_options = {
+    ...
+    ""exclude-members"": ""objects""
+}
+```
+
+
+@author:
+Ok perhaps I do not understand sphinx directives like I thought I did, but adding to `conf.py` works where directly to the automodule directive did not.
+I thought I had tried that too but oh well glad it works!",
+Lightning-AI__pytorch-lightning-4654@89b962d,0,"@user1:
+```suggestion
+        if os.getenv('COLAB_GPU') and refresh_rate < 20:
+```
+I suggest using this since this is what we use at other places.
+
+@author:
+Does this work for Colab CPU and TPU runtimes too?
+
+@user1:
+Yes. Its actually a string. On other runtimes its value is '0'.",
+ansible__ansible-59946@fbe8544,0,"@user1:
+shouldn't we keep the previous check also (make it an `and`) to avoid `None` values instead of list or list of empty items?
+
+@author:
+Probably
+
+@author:
+Done.",
+pandas-dev__pandas-23866@45e5f06,3,"@user1:
+same about `-n pandas-dev` not needed",
+pandas-dev__pandas-28802@33c889c,0,"@user1:
+Can you add `list` as a `box` since this should also work for something like `[True, True, False]`?",
+pandas-dev__pandas-23480@ab05b87,0,"@user1:
+move in pandas/tests/series where reindex tests are",
+dask__dask-7974@88a13f7,3,"@user1:
+If we're being thorough, then `cmap` should be a separate kwargs in this list with a better description than given here; or just remove it, since we don't say anywhere what kind of object cmap can be (and it is probably not tested).
+
+@author:
+Right!",
+tobymao__sqlglot-2096@1794bf3,0,"@user1:
+just do raise i think
+
+@user1:
+actually it's not necessary, it happens on line 3574
+
+@author:
+we can also do `raise` yeah, mostly wanted to follow the same style as in 3574",
+ansible__ansible-27435@da1a331,2,"@user1:
+boto_conn now handles missing regions, no need to do it here.",
+numpy__numpy-15425@e603b5f,0,"@user1:
+What is this for?
+
+@author:
+This is to verify that explicitly calling numpy.testing is not adding a second copy of 'testing' to the result of dir.
+
+@user1:
+But this is started in a separate process, so can have no effect on the rest of the test.
+
+@user2:
+At this point in the test we probably already did anything bad (e.g. testing is definitely imported), wouldn't it be enough to just test that `len(dir(np)) == len(set(dir(np)))`, with a comment of why?
+
+@author:
+@user3-wieser @user2 I have modified the test to assert len(dir(np)) == len(set(dir(np)))
+
+@user2:
+Thanks, seems fair enough to me. If you are still enthusiastic: We try to keep the lines below 80 characters long (so the comment is a bit too long). Might as well rebase/squash the commits (but we can also do both of that).
+
+@author:
+@user2  Thanks for the review. I have modified the comments to be inline with the standards.",
+huggingface__diffusers-792@90385bb,0,"@user1:
+I don't think we need an `if` statement here as `.float()` should always work and be correct (e.g. we can't do `fp16` on CPU either and doing `numpy()` will move it to `fp32` anyways
+
+@user2:
+@user1 why would `numpy()` move the arrays to `fp32`? I thought that numpy arrays support `fp16`?
+I believe we should use `.half()` instead which should work on CPU also?",
+tobymao__sqlglot-2096@1794bf3,1,"@user1:
+possible to do without the try catch? it doesn't just return null?
+
+@author:
+I tried without the try-catch first but it doesn't always return `None`, due to this check in `_parse`:
+
+https://github.com/tobymao/sqlglot/blob/6fa1581ae0bdf7e0073a7b9a355e72241e5e6959/sqlglot/parser.py#L967-L968
+
+Tbh, I'm not sure if the `is None` check below is needed - if the parsing fails, it seems like it'll always raise instead of hitting that block.",
+microsoft__autogen-2225@9cf65ed,0,"@user1:
+To align with `_cache_get` I think this line should be:
+`key = f""{json.dumps(content)}_{self._min_tokens}""`",
+sympy__sympy-19254@8adfdbe,0,"@user1:
+`binomial` is not defined.
+
+@author:
+You are right, checking the log now i see: ""ImportError: cannot import name 'binomial' from partially initialized module 'sympy' (most likely due to a circular import)""
+What is the correct way of importing the binomial function?
+
+@user2:
+If you want to resolve the circular import issue, you should import inside the function block itself.",
+huggingface__diffusers-4015@c63a53a,0,"@user1:
+```suggestion
+        denoising_end: Optional[float] = None,
+```
+
+Same as: https://github.com/huggingface/diffusers/pull/4015/files#r1257982804 => can we switch to % here maybe? 
+
+@author:
+so if you use percentages the accuracy of the calculation and converting to integer means you might misalign timesteps, which results in artifacting
+
+@user2:
+Fair point! 
+
+@author:
+i have an idea i will implement a helper method to return a pair of values from two inputs.
+
+@user1:
+Hmm can you explain how you might accidentally misalign? 
+
+@user1:
+Actually I think this can't really happen if we always round, e.g.:
+
+```py
+max_inference_steps = int(round(denoising_end * num_inference_steps))
+first_inference_steps = int(round(denoising_start * num_inference_Steps))
+```
+
+`denoising_end` should always be equal to `1 - denoising_start` and in this case we will always have:
+
+```py
+num_inference_steps = max_inference_steps + first_inference_steps
+```
+
+no? 
+
+@author:
+it happens when you have precise values for `strength` that result in remainders in the `int()` casting that become discarded. i have tested it:
+![1689000316 7576849ca8f41e6b56b1ff29f093680e55fbc6](https://github.com/huggingface/diffusers/assets/59658056/727c7404-8103-4b3c-866a-91af6d57791a)
+
+In this test, `num_inference_steps` is set to `27` and `strength` is set to `0.73` - the calculation says that the model should run for about `19.71` steps, but since we can't run a fractional step, this would be truncated by `int()` to `19`, but the value for `begin_inference_step` is `7.27` which truncates to `7`.
+
+This results in a misalignment of one step, which is, apparently, enough to disrupt the output altogether.
+
+We can use round(), but instead, I have opted for what I've considered a more robust approach.
+
+Furthermore, there are some prompts/seeds/subject material where these artifacts prove useful in making the output more variable and creative. Having the option to set those and override our best judgement seems like one of the things that makes Diffusers great, and I wanted to retain that.
+
+
+
+
+@user3:
++1 on @user1 suggestion on using a percentage 
+
+It seems to me we will just have to set  `denoising_end = denoising_start`, and default it to be `(1- strength)`? 
+
+then,
+`final_inference_steps = int(denoising_end * num_inference_steps)`
+`begin_inference_steps = int(denoising_start * num_inference_steps)`
+
+so in the example `num_inference_step = 27`, `strength= 0.73`,  we will have `final_inference_steps = begin_inference_steps = 7`, i.e  run `7` steps in base model and `20` in refiner - is this what's intended? 
+
+
+@author:
+ive tested this, and while it seems like it should work, it has really broken the results for me, overall. i am digging into it.",
+ansible__ansible-51415@fb988f5,0,"@user1:
+This tag/access isn't defined in the description for tags. Can you add that information like you did for the json dict for networks?
+
+@author:
+I've updated this so please take a look and let me know if what I have is more obvious.",
+skypilot-org__skypilot-5435@50d9632,0,"@user1:
+We have a similar function at `/sky/skypilot_config.py:overlay_skypilot_config`, since `Dict[str, Any]` can be trivially converted to `config_utils.Config` you may be able to use that function instead of defining a function here.",
+conan-io__conan-16942@e62c6eb,1,"@user1:
+We don't need an empty default plugin, better consider the non-existence of the file as user didn't provide one and do nothing.",
+sympy__sympy-18630@9ca7e3a,0,"@user1:
+```suggestion
+            terms.append(((Rf1/Rf2) * (arg**i)) / factorial(i))
+```",
+numpy__numpy-14924@6a7e3f1,0,"@user1:
+It looks like you want `acc` to ""accumulate"" the products of 1 minus the beta random variates, but you can't use `val_data[i+j]` for that, because it includes the product of `acc` and the random beta (not just the random beta).  You can make this work if you save the random beta variate in its own variable.  The body of the `while` loop then looks like this:
+
+                    acc = 1.
+                    for j in range(k - 1):
+                        v = random_beta(&self._bitgen,
+                                        alpha_data[j], alpha_csum_data[j + 1])
+                        val_data[i + j] = acc * v
+                        acc *= (1. - v)
+                    val_data[i + j + 1] = acc
+                    i = i + k
+
+where `v` is `cdef`'d to be type `double` at the beginning of the function.
+
+@author:
+Thanks for the hint. I have pushed the suggested changes. This should restore the correct distribution.
+
+@user1:
+Thanks, the update looks good.
+
+I'm currently running a bunch of tests to see if anything breaks. :)",
+PostHog__posthog-4868@1372f68,2,"@user1:
+⚠️
+```suggestion
+    def _get_entity_query(self, entities=None, entity_name=""events"") -> Tuple[str, Dict[str, Any]]:
+```",
+pandas-dev__pandas-23866@45e5f06,2,"@user1:
+This one can't be removed, as the rest of the next step is to remove pandas from the environment, so it needs to be active",
+keephq__keep-3054@2d23bf3,0,"@user1:
+This Posthog key too",
+pandas-dev__pandas-14737@8e4adbb,0,"@user1:
+I don't think `original` is used? In that case, it's not needed to return it
+
+@author:
+I have addressed this review comment",
+pandas-dev__pandas-42186@62d46c4,0,"@user1:
+`pxi.in` isn't recognised as `cython` by [identify](https://github.com/pre-commit/identify), does the following work?
+
+```suggestion
+        files: (\.pyx|\.pxi.in)$
+```
+
+@author:
+I tried that, but it shows the following message, don't know if it worked or not as it showed the same message when I ran unwanted patterns with the cython check their. While, it gave error for .rst files when ran with ci-check on PR.
+
+<img width=""1030"" alt=""Screenshot 2021-08-02 at 8 51 19 PM"" src=""https://user-images.githubusercontent.com/46242526/127885070-14358a8b-6d6f-452b-99a6-3bbac71bdd41.png"">
+
+
+
+@author:
+Should I make a commit anyway?
+
+@user1:
+ah, you should run `pre-commit run cython-casting --all-files`, else it'll only run against files you've staged
+
+@author:
+Thank you!! I ran that and found that my hook is not working for the previous test.pyx or test.pix.in example, it works when I move the logic to unwanted hooks but it doesn't work with the new hook
+
+@author:
+Ok with the quotes it works now",
+sympy__sympy-11818@ab1bcd5,0,"@user1:
+The method could probably check this first and coerce other into a ComplexRegion before asking `if other.is_ComplexRegion`.
+
+@author:
+I don't think converting other to ComplexRegion is necessary, since under the `if other.is_ComplexRegion:` we are only using `other.sets` which just returns set passed in constructor, and this way we don't incur overhead of ComplexRegion's constructor.
+
+If you think this makes logic of what's happening clearer, I'll change it.
+
+@user1:
+>  this makes logic of what's happening clearer
+
+Yes, that is what I think. We should avoid having to use any knowledge of the internal representation of ComplexRegion. Hence also the conversion should be carried out by ComplexRegion despite of some overhead. That could be done by overloading `ComplexRegion.__new__` to accept a subset of Reals, or, maybe preferably, by a new method `ComplexRegion.from_real`.",
+ansible__ansible-58383@531e457,2,"@user1:
+We also don't want to test the credentials if `update_password` is `on_create` and we didn't create a new user. Right now this will always check and update the password for both `on_create` and `when_changed` effectively making them the same thing. We could always make this more efficient by not testing the credentials when `update_password` is `always` as we will always update it regardless of this result.
+
+@author:
+No it won't $new_user is only true if the user was newly created https://github.com/ansible/ansible/pull/58383/files#diff-a814da53b65fce105cb5fb909b79b267R201 therefore it won't be touched.
+
+The outer if-statement checks:
+```
+($password) ∧ (($new_user ∧ $update_password == ""on_create"") ∨ ($update_password ∈ {'always', 'when_chantged'}))
+```
+
+The inner if-statement:
+```
+¬($new_user)
+```
+
+So Test-Credential is executed when:
+```
+($password) ∧ (($new_user ∧ $update_password == ""on_create"") ∨ ($update_password ∈ {'always', 'when_chantged'})) ∧ ¬($new_user)
+```
+
+And for the case where `$password = 'something' ∧ update_password == 'on_create' ∧ $new_user == $true` (we just created the user) it will results in:
+
+1. `$password` => $true
+2. `(($new_user ∧ $update_password == ""on_create"")` => $true
+3. ¬($new_user) => $false
+
+=> So it will not be executed.
+
+And for the case where `$password = 'something' ∧ update_password == 'on_create' ∧ $new_user == $false` (we the user already existed) it will results in:
+
+1. `$password` => $true
+2. `($new_user ∧ $update_password == ""on_create"")` => $false
+3. `($update_password ∈ {'always', 'when_chantged'})` => $false
+
+=> So it will not be executed either.
+
+Maybe this if statement is too complicated, I'll consider rewriting it.
+
+@user1:
+Ahh yes I see it now sorry, we should still avoid testing the credentials when the credentials is `always` as we will be changing it anyway.
+
+It did seem a bit confusing when I was reading through it originally so if you can simplify it then by all means go ahead.
+
+@author:
+Sometimes you can't see the forest for the trees...
+It's now way easier.",
+pandas-dev__pandas-34933@de64663,0,"@user1:
+include the type for ignore_index.
+
+@author:
+Got it, done.",
+Avaiga__taipy-1042@a76a34b,0,"@user1:
+Usually, the name and the tags are specific to a scenario instance. They are not passed when building a scenario configuration, but they are provided as parameters during the scenario creation.
+
+You can have an example in my previous comment.
+
+
+@author:
+All right, I see. Thank you for clarifying this. I will change it.",

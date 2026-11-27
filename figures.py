@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).parent
 AN = ROOT / "results/analysis"
 
-PREFERRED_ORDER = ["static", "global", "scoped"]
+PREFERRED_ORDER = ["static", "global", "scoped", "global-rich", "scoped-rich"]
 COLORS = {"static": "#7f7f7f", "global": "#1f77b4", "scoped": "#2ca02c", "no-gate": "#ff7f0e"}
 FALLBACK_COLORS = ["#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22"]
 DPI = 200

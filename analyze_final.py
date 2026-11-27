@@ -39,7 +39,7 @@ AN = R / "analysis"
 MAX_SKILLS = 6            # evolve.MAX_SKILLS; imported as a number to avoid pulling in litellm
 EXACT_MAX_DISCORDANT = 25  # protocol: exact binomial for small discordant counts, else chi-square
 PRIMARY = ("scoped", "global")
-PREFERRED_ORDER = ["static", "global", "scoped"]
+PREFERRED_ORDER = ["static", "global", "scoped", "global-rich", "scoped-rich"]
 
 CSV_COLUMNS = [
     "row_type", "condition", "partition", "n_prs", "n_comments", "n_repos", "n_errors", "error_rate",

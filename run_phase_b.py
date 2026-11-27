@@ -27,7 +27,7 @@ EVO = ROOT / "results/evolution"
 DEV_N, SEL_N = 87, 34          # eligible development / selection PRs (seeded, nested; PROTOCOL §7)
 SEED = 0
 MAX_ROUNDS = 5                 # protocol cap for gated conditions
-CONDITIONS = ("global", "scoped")
+CONDITIONS = ("global", "scoped", "global-rich", "scoped-rich")  # *-rich: exploratory (PROTOCOL A5)
 
 # The two static baselines the gate compares against: file -> (expected partition, expected n_done/n_requested).
 STATIC_FILES = {

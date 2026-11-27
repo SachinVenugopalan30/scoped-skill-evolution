@@ -11,6 +11,17 @@ ROOT = data.ROOT
 SCOPES = ("global", "bug_fix", "feature", "other")
 MAX_EDITS, MAX_WORDS = 1, 60
 LAST_OPT_RAW = None  # raw text of the latest optimizer reply, logged with the round record
+RICH_SUFFIX = "-rich"  # PROTOCOL A5: exploratory arms that also see the category of each missed development concern
+GOLD_CATEGORIES = ROOT / "results/gold_categories_dev.json"
+
+
+def base(condition):
+    """The library organization a condition uses: "global-rich" behaves exactly like "global" except for feedback."""
+    return condition[:-len(RICH_SUFFIX)] if condition.endswith(RICH_SUFFIX) else condition
+
+
+def is_rich(condition):
+    return condition.endswith(RICH_SUFFIX)
 MAX_SKILLS = 6            # retrieved skills per PR (hard cap, before the token budget)
 RETRIEVAL_BUDGET = 400    # tokens of skill text injected into one review prompt
 OPT_RESERVE_USD = 0.3
@@ -45,7 +56,7 @@ def retrieve(library, pr_type, condition, budget_tokens=RETRIEVAL_BUDGET):
     if condition == "static":
         return []
     library = normalize_library(library)
-    groups = [["global"]] if condition == "global" else [[pr_type], ["global"]]
+    groups = [["global"]] if base(condition) == "global" else [[pr_type], ["global"]]
     out, seen, used = [], set(), ""
     for scopes in groups:
         ranked = sorted((( _order(s, i), i, s) for i, s in enumerate(library) if s.get("scope") in scopes),
@@ -149,6 +160,30 @@ def _feedback_forbid(records):
     return sorted(redact, key=len, reverse=True), sorted(check, key=len, reverse=True)
 
 
+# ---------- rich feedback (PROTOCOL A5, exploratory) ----------
+def annotate_rich(dev, inst_by_id, categories=None):
+    """Attach, per development comment, its offline category and whether any finding was in the gold comment's file.
+    Only the category label and a boolean leave this function; the gold path and text never do."""
+    cats = categories if categories is not None else json.loads(GOLD_CATEGORIES.read_text())
+    for r in dev:
+        inst = inst_by_id.get(r.get("instance_id"))
+        if inst is None or r.get("passed") is None:
+            continue
+        files = {f.get("file") for f in (r.get("findings") or []) if isinstance(f, dict)}
+        labels = cats.get(inst["instance_id"]) or []
+        r["rich"] = [{"category": labels[k] if k < len(labels) else "unlabelled", "located": c.get("path") in files}
+                     for k, c in enumerate(inst["reference_review_comments"])]
+
+
+def _concerns(r, per_comment):
+    rich = r.get("rich")
+    if not rich:
+        return []
+    ok = {p.get("comment_index"): p.get("passed") is True for p in per_comment}
+    return [{"category": c["category"], "resolved": ok.get(k, False), "located": bool(c["located"])}
+            for k, c in enumerate(rich)]
+
+
 # ---------- feedback ----------
 def build_feedback(dev_results, library, condition, rejected=()):
     """Compact, sanitized payload for the optimizer: aggregate pass/fail per type, a few failed-first examples, per-skill
@@ -156,7 +191,7 @@ def build_feedback(dev_results, library, condition, rejected=()):
     records = [r for r in dev_results if isinstance(r, dict) and r.get("instance_id")]
     redact, check = _feedback_forbid(records)
     overall = {"prs": 0, "passed_prs": 0, "comments_passed": 0, "comments_total": 0, "errors": 0}
-    by_type, examples = {}, []
+    by_type, examples, misses = {}, [], {}
     skills = {s["id"]: {"retrieved": 0, "passed_prs": 0} for s in library}
     for r in records:
         per_comment = [p for p in (r.get("per_comment") or []) if isinstance(p, dict)]
@@ -184,8 +219,14 @@ def build_feedback(dev_results, library, condition, rejected=()):
             findings = [{"issue_header": _clean(f.get("issue_header") or "", redact),
                          "issue_content": _clean(f.get("issue_content") or "", redact)}
                         for f in (r.get("findings") or [])[:3] if isinstance(f, dict)]
-            examples.append({"pr_type": ptype, "findings": findings, "passed": cp, "total": ct,
-                             "_failed": r.get("passed") is False})
+            ex = {"pr_type": ptype, "findings": findings, "passed": cp, "total": ct, "_failed": r.get("passed") is False}
+            concerns = _concerns(r, per_comment)
+            if concerns:  # rich arms only (PROTOCOL A5): category + resolved + located, no gold text, path or line
+                ex["concerns"] = concerns
+                for c in concerns:
+                    m = misses.setdefault(ptype, {}).setdefault(c["category"], [0, 0])
+                    m[0] += c["resolved"]; m[1] += 1
+            examples.append(ex)
     examples.sort(key=lambda e: 0 if e["_failed"] else 1)  # failed PRs first, stable otherwise
     examples = [{k: v for k, v in e.items() if k != "_failed"} for e in examples[:12]]
 
@@ -207,6 +248,9 @@ def build_feedback(dev_results, library, condition, rejected=()):
 
     payload = {"overall": overall, "by_type": dict(sorted(by_type.items())), "examples": examples,
                "skills": {k: skills[k] for k in skills}, "rejected": rejected_edits[-12:]}
+    if misses:
+        payload["concerns_by_type"] = {t: {c: f"{v[0]} of {v[1]} resolved" for c, v in sorted(cs.items())}
+                                       for t, cs in sorted(misses.items())}
     assert_clean(payload, check)  # exact final payload, before it is placed in a prompt
     return payload
 
@@ -240,7 +284,7 @@ def parse_edits(raw, library, condition):
         elif e["op"] == "replace":
             out.append({"op": "replace", "id": e["id"], "text": text})
         else:
-            scope = "global" if condition == "global" else e.get("scope")
+            scope = "global" if base(condition) == "global" else e.get("scope")
             if scope in SCOPES:
                 out.append({"op": "add", "scope": scope, "text": text})
     return out[:MAX_EDITS]
@@ -265,7 +309,7 @@ def propose_edits(library, feedback, condition, forbidden=(), model=reviewer.MOD
         library = real_library
     elif _looks_like_records(feedback):
         feedback = build_feedback(feedback, library, condition)
-    scopes = "scope must be \"global\"" if condition == "global" else f"scope is one of {list(SCOPES)}; use a PR-type scope only for guidance specific to that type"
+    scopes = "scope must be \"global\"" if base(condition) == "global" else f"scope is one of {list(SCOPES)}; use a PR-type scope only for guidance specific to that type"
     system = ("You improve a code-review agent's skill library. Skills are short reusable review guidance injected into its prompt. "
               "Feedback shows, per reviewed PR, the review findings and how many of the PR's independent concerns were then resolved "
               "(passed of total). Write general guidance, never facts about a specific PR, file or project. "
@@ -428,6 +472,8 @@ def run_round(condition, library, dev_prs, sel_prs, gated=True, run_id=None, rej
     dev = evaluate(dev_prs, library, condition, salt=salt)
     dev_by_id = {r["instance_id"]: r for r in dev if r.get("instance_id")}  # keyed, never zipped with dev_prs
     inst_by_id = {i["instance_id"]: i for i in dev_prs}
+    if is_rich(condition):
+        annotate_rich(dev, inst_by_id)
     forbidden = []
     for iid, r in dev_by_id.items():
         if r.get("passed") is None or iid not in inst_by_id:
@@ -714,14 +760,14 @@ def main():
     s.add_argument("--partition", required=True)
     s.add_argument("--n", type=int, required=True)
     e = sub.add_parser("evolve")
-    e.add_argument("--condition", choices=["global", "scoped"], required=True)
+    e.add_argument("--condition", choices=["global", "scoped", "global-rich", "scoped-rich"], required=True)
     e.add_argument("--dev-n", type=int, required=True)
     e.add_argument("--sel-n", type=int, required=True)
     e.add_argument("--rounds", type=int, required=True)
     e.add_argument("--no-gate", action="store_true")
     sc = sub.add_parser("score")
     sc.add_argument("--partition", default="test")
-    sc.add_argument("--condition", choices=["static", "global", "scoped"], required=True)
+    sc.add_argument("--condition", choices=["static", "global", "scoped", "global-rich", "scoped-rich"], required=True)
     sc.add_argument("--library", default=None)
     sc.add_argument("--n", type=int, default=None)
     for p in (s, e, sc):

@@ -1,0 +1,283 @@
+{
+ "sympy__sympy-11818@ab1bcd5": [
+  "maintainability/style"
+ ],
+ "dbt-labs__dbt-core-7186@c6b5b12": [
+  "API/contract misuse"
+ ],
+ "skypilot-org__skypilot-1489@1430d74": [
+  "correctness/logic",
+  "maintainability/style",
+  "correctness/logic"
+ ],
+ "sympy__sympy-18605@a356458": [
+  "correctness/logic"
+ ],
+ "apache__airflow-26766@cf0c9a6": [
+  "maintainability/style"
+ ],
+ "skypilot-org__skypilot-1427@b01cb79": [
+  "correctness/logic"
+ ],
+ "ansible__ansible-27435@da1a331": [
+  "maintainability/style",
+  "correctness/logic",
+  "correctness/logic"
+ ],
+ "keephq__keep-1984@e524fe8": [
+  "error handling"
+ ],
+ "ansible__ansible-62373@30950ec": [
+  "maintainability/style"
+ ],
+ "keephq__keep-4568@aaa03de": [
+  "API/contract misuse"
+ ],
+ "apache__airflow-32366@52228da": [
+  "correctness/logic"
+ ],
+ "numpy__numpy-22997@8c57716": [
+  "error handling"
+ ],
+ "ansible__ansible-44951@91cfd5c": [
+  "input validation"
+ ],
+ "pandas-dev__pandas-16744@b8a6007": [
+  "tests/coverage"
+ ],
+ "numpy__numpy-15425@e603b5f": [
+  "tests/coverage"
+ ],
+ "huggingface__accelerate-255@12e4b18": [
+  "maintainability/style"
+ ],
+ "microsoft__autogen-2225@9cf65ed": [
+  "correctness/logic"
+ ],
+ "skypilot-org__skypilot-569@1c4deb7": [
+  "correctness/logic"
+ ],
+ "freqtrade__freqtrade-5846@da4344d": [
+  "maintainability/style"
+ ],
+ "sympy__sympy-15346@99fe375": [
+  "performance"
+ ],
+ "dbt-labs__dbt-core-8743@fb6f32f": [
+  "maintainability/style"
+ ],
+ "ansible__ansible-65021@f63c26e": [
+  "maintainability/style"
+ ],
+ "skypilot-org__skypilot-614@ac824f0": [
+  "correctness/logic"
+ ],
+ "goauthentik__authentik-13602@50ea3f3": [
+  "correctness/logic"
+ ],
+ "sympy__sympy-19913@d466e06": [
+  "tests/coverage"
+ ],
+ "sympy__sympy-19254@8adfdbe": [
+  "correctness/logic"
+ ],
+ "ansible__ansible-55379@060b0e9": [
+  "correctness/logic"
+ ],
+ "huggingface__diffusers-792@90385bb": [
+  "correctness/logic"
+ ],
+ "Lightning-AI__pytorch-lightning-4654@89b962d": [
+  "correctness/logic"
+ ],
+ "pandas-dev__pandas-28802@33c889c": [
+  "correctness/logic"
+ ],
+ "microsoft__autogen-4044@e5bddfc": [
+  "correctness/logic"
+ ],
+ "ansible__ansible-59946@fbe8544": [
+  "correctness/logic"
+ ],
+ "pandas-dev__pandas-35284@644bdf7": [
+  "maintainability/style"
+ ],
+ "keephq__keep-100@6a8be21": [
+  "maintainability/style"
+ ],
+ "sympy__sympy-22369@6eb7e6a": [
+  "correctness/logic"
+ ],
+ "Avaiga__taipy-1042@a76a34b": [
+  "API/contract misuse"
+ ],
+ "ansible__ansible-56679@5e79e31": [
+  "maintainability/style"
+ ],
+ "pandas-dev__pandas-55938@b36d8d1": [
+  "correctness/logic"
+ ],
+ "ManimCommunity__manim-509@1cbc24f": [
+  "performance"
+ ],
+ "sympy__sympy-26515@2c01ca9": [
+  "maintainability/style"
+ ],
+ "conan-io__conan-16942@e62c6eb": [
+  "correctness/logic",
+  "correctness/logic"
+ ],
+ "sympy__sympy-27352@b3187d6": [
+  "maintainability/style"
+ ],
+ "pandas-dev__pandas-42635@59d4145": [
+  "maintainability/style"
+ ],
+ "huggingface__diffusers-4015@c63a53a": [
+  "correctness/logic"
+ ],
+ "ansible__ansible-36996@4b45ffc": [
+  "correctness/logic"
+ ],
+ "voxel51__fiftyone-4236@2af48de": [
+  "maintainability/style"
+ ],
+ "apache__airflow-16732@8ec4f26": [
+  "tests/coverage"
+ ],
+ "sympy__sympy-22426@05cec82": [
+  "maintainability/style"
+ ],
+ "ansible__ansible-54268@403b068": [
+  "maintainability/style"
+ ],
+ "pandas-dev__pandas-35974@d0a8a68": [
+  "performance"
+ ],
+ "numpy__numpy-14924@6a7e3f1": [
+  "correctness/logic"
+ ],
+ "PostHog__posthog-8874@960dad4": [
+  "maintainability/style"
+ ],
+ "tobymao__sqlglot-5284@3f57fcd": [
+  "maintainability/style"
+ ],
+ "dask__dask-7974@88a13f7": [
+  "maintainability/style",
+  "API/contract misuse",
+  "correctness/logic",
+  "maintainability/style"
+ ],
+ "PostHog__posthog-10293@7041fd3": [
+  "maintainability/style"
+ ],
+ "skypilot-org__skypilot-1144@36893af": [
+  "maintainability/style"
+ ],
+ "langflow-ai__langflow-918@c710c1c": [
+  "API/contract misuse"
+ ],
+ "pandas-dev__pandas-14737@8e4adbb": [
+  "maintainability/style",
+  "maintainability/style",
+  "correctness/logic",
+  "correctness/logic"
+ ],
+ "run-llama__llama_index-13413@63620ed": [
+  "API/contract misuse"
+ ],
+ "sympy__sympy-24666@7d194c7": [
+  "maintainability/style"
+ ],
+ "skypilot-org__skypilot-4067@ff528a5": [
+  "maintainability/style"
+ ],
+ "ManimCommunity__manim-1140@ed7dc3d": [
+  "tests/coverage"
+ ],
+ "pandas-dev__pandas-23480@ab05b87": [
+  "tests/coverage"
+ ],
+ "apache__airflow-8749@161c96c": [
+  "correctness/logic"
+ ],
+ "pandas-dev__pandas-23866@45e5f06": [
+  "correctness/logic",
+  "maintainability/style",
+  "correctness/logic",
+  "maintainability/style"
+ ],
+ "ansible__ansible-20646@f695114": [
+  "correctness/logic"
+ ],
+ "numpy__numpy-12123@1c2abd3": [
+  "correctness/logic"
+ ],
+ "numba__numba-4282@a062e23": [
+  "error handling"
+ ],
+ "pandas-dev__pandas-23141@1c22791": [
+  "tests/coverage"
+ ],
+ "pandas-dev__pandas-23886@d6a2d5b": [
+  "maintainability/style"
+ ],
+ "pydantic__pydantic-11468@92c01bd": [
+  "maintainability/style"
+ ],
+ "pandas-dev__pandas-43930@fef88a7": [
+  "correctness/logic"
+ ],
+ "ansible__ansible-58383@531e457": [
+  "correctness/logic",
+  "correctness/logic",
+  "correctness/logic"
+ ],
+ "ansible__ansible-51415@fb988f5": [
+  "maintainability/style"
+ ],
+ "PostHog__posthog-4868@1372f68": [
+  "maintainability/style",
+  "correctness/logic",
+  "maintainability/style"
+ ],
+ "ansible__ansible-71136@621cec5": [
+  "correctness/logic"
+ ],
+ "pandas-dev__pandas-42186@62d46c4": [
+  "correctness/logic"
+ ],
+ "tobymao__sqlglot-2096@1794bf3": [
+  "maintainability/style",
+  "error handling"
+ ],
+ "pandas-dev__pandas-50366@1e7613f": [
+  "maintainability/style"
+ ],
+ "pandas-dev__pandas-34933@de64663": [
+  "maintainability/style"
+ ],
+ "sympy__sympy-18630@9ca7e3a": [
+  "correctness/logic"
+ ],
+ "keephq__keep-3054@2d23bf3": [
+  "correctness/logic",
+  "correctness/logic"
+ ],
+ "skypilot-org__skypilot-5435@50d9632": [
+  "maintainability/style"
+ ],
+ "ManimCommunity__manim-482@f2fd3e3": [
+  "maintainability/style"
+ ],
+ "ansible__ansible-33909@d516d5b": [
+  "maintainability/style"
+ ],
+ "skypilot-org__skypilot-727@4fca3da": [
+  "correctness/logic"
+ ],
+ "ansible__ansible-60622@19d2ad7": [
+  "maintainability/style"
+ ]
+}

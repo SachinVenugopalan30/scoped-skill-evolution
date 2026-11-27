@@ -1120,6 +1120,31 @@ def test_evolve_loop_rounds():
     assert log[-1]["stopped"] == "stop-after-rejections" and log[-1]["round"] == 2
 
 
+def test_rich_feedback():
+    """Rich arms (A5) add per-comment category/resolved/located and per-type counts; gold text and paths never leak, and the
+    base arms' payload is unchanged."""
+    inst = INST
+    n = len(inst["reference_review_comments"])
+    gold_path = inst["reference_review_comments"][0]["path"]
+    rec = {"instance_id": inst["instance_id"], "repo": inst["repo"], "pr_type": "bug_fix", "skill_ids": [],
+           "findings": [{"file": gold_path, "issue_header": "h", "issue_content": "c"}],
+           "per_comment": [{"comment_index": k, "passed": k == 0} for k in range(n)], "passed": n == 1}
+    plain = evolve.build_feedback([dict(rec)], [], "scoped")
+    assert "concerns_by_type" not in plain and all("concerns" not in e for e in plain["examples"])
+    rich = dict(rec)
+    evolve.annotate_rich([rich], {inst["instance_id"]: inst}, {inst["instance_id"]: ["tests/coverage"] * n})
+    fb = evolve.build_feedback([rich], [], "scoped-rich")
+    c = fb["examples"][0]["concerns"]
+    assert len(c) == n and c[0] == {"category": "tests/coverage", "resolved": True, "located": True}
+    assert fb["concerns_by_type"]["bug_fix"]["tests/coverage"] == f"1 of {n} resolved"
+    text = json.dumps(fb)
+    assert gold_path not in text and inst["reference_review_comments"][0]["text"][:40] not in text
+    assert evolve.base("scoped-rich") == "scoped" and evolve.base("global-rich") == "global" and evolve.base("global") == "global"
+    lib = [{"id": "s1", "scope": "global", "text": "g", "order": 0}, {"id": "s2", "scope": "bug_fix", "text": "b", "order": 1}]
+    assert [s["id"] for s in evolve.retrieve(lib, "bug_fix", "global-rich")] == ["s1"]
+    assert [s["id"] for s in evolve.retrieve(lib, "bug_fix", "scoped-rich")] == ["s2", "s1"]
+
+
 if __name__ == "__main__":
     test_census(); test_splits(); test_reproducible()
     test_gate(); test_sanitizer(); test_retrieval(); test_ledger(); test_ledger_tokens(); test_reviewer(); test_review_waf_fallback(); test_cache()
@@ -1127,5 +1152,5 @@ if __name__ == "__main__":
     test_sample_scrub_optimizer(); test_stats(); test_round(); test_repair_failures(); test_evaluate_stops()
     test_guards_and_summary(); test_image_cleanup(); test_proxy_hook(); test_eligible_test_guard()
     test_fresh_cache(); test_summarize_tokens(); test_round_logging(); test_score_library_guard()
-    test_waf_blocked_repair(); test_evolve_loop_rounds()
+    test_waf_blocked_repair(); test_evolve_loop_rounds(); test_rich_feedback()
     print("all tests passed")
