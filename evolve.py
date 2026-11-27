@@ -490,6 +490,18 @@ def _code_sha():
 CODE_FILES = ("harness.py", "evolve.py", "reviewer.py", "data.py", "proxy_hooks.py")
 
 
+def _code_unchanged_since(sha):
+    """True iff `sha` is an ancestor of HEAD and no scored code file differs between them. Committing FROZEN.json itself
+    moves HEAD, so the frozen commit may be HEAD's parent; any later change to CODE_FILES still blocks the test set."""
+    if not sha:
+        return False
+    anc = subprocess.run(["git", "merge-base", "--is-ancestor", sha, "HEAD"], cwd=str(ROOT), capture_output=True)
+    if anc.returncode != 0:
+        return False
+    diff = subprocess.run(["git", "diff", "--quiet", sha, "HEAD", "--", *CODE_FILES], cwd=str(ROOT), capture_output=True)
+    return diff.returncode == 0
+
+
 def _code_manifest(root=None):
     """SHA-256 of every scored code file. HEAD alone is not enough: uncommitted edits must also block the test set."""
     root = Path(root or ROOT)
@@ -504,8 +516,9 @@ def _require_frozen():
     frozen = json.loads(path.read_text())
     code_sha = str(frozen.get("code_sha") or "").strip()
     head = _code_sha()
-    if code_sha != head:
-        raise RuntimeError(f"FROZEN.json code_sha {code_sha[:12]} does not match git HEAD {head[:12]}")
+    if code_sha != head and not _code_unchanged_since(code_sha):
+        raise RuntimeError(f"FROZEN.json code_sha {code_sha[:12]} does not match git HEAD {head[:12]}, and the scored "
+                           f"code files changed since it (or it is not an ancestor of HEAD)")
     manifest = frozen.get("code_manifest")
     if not isinstance(manifest, dict) or not manifest:
         raise RuntimeError("FROZEN.json is missing code_manifest (hashes of the scored code files)")
@@ -525,6 +538,12 @@ def eligible(partition, allow_test=False):
         if not allow_test:
             raise ValueError("locked test partition: our system may not run on it")
         _require_frozen()
+    return _eligible(partition)
+
+
+def _eligible(partition):
+    """Unguarded body of eligible(): reads split ids and PR inputs only, never outcomes. freeze.py uses it to record the
+    test ids before the guard can pass."""
     ids = json.load(open(ROOT / "results/splits.json"))["instance_ids"][partition]
     inst = harness.instances()
     by, ex = {}, {"no_image": [], "oversize": []}

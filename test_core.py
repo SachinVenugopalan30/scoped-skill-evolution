@@ -924,10 +924,14 @@ def test_eligible_test_guard():
             except RuntimeError as e:
                 assert "code_manifest" in str(e)
             (root / "results/FROZEN.json").write_text(json.dumps({"code_sha": "deadbeef", "code_manifest": manifest}))
-            try:
-                evolve.eligible("test", allow_test=True); raise SystemExit("mismatched FROZEN.json accepted")
-            except RuntimeError as e:
-                assert "does not match" in str(e)
+            with mock.patch.object(evolve, "_code_unchanged_since", lambda sha: False):
+                try:
+                    evolve.eligible("test", allow_test=True); raise SystemExit("mismatched FROZEN.json accepted")
+                except RuntimeError as e:
+                    assert "does not match" in str(e)
+            # a descendant commit (e.g. the one that adds FROZEN.json) is fine while the scored code is unchanged
+            with mock.patch.object(evolve, "_code_unchanged_since", lambda sha: sha == "deadbeef"):
+                evolve.eligible("test", allow_test=True)
 
 
 def test_fresh_cache():

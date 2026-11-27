@@ -1,0 +1,8 @@
+[
+ {
+  "id": "s1",
+  "scope": "global",
+  "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings.",
+  "order": 1
+ }
+]

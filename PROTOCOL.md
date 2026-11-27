@@ -509,6 +509,41 @@ record per round, so the invalid records stay in the append-only log but are sup
 
 **Evidence used.** Phase B round records (`optimizer_raw`) on development and selection only. No test-partition data.
 
+
+### A5 — 2026-11-27 (written before the freeze and before any test evaluation)
+
+**Phase C, as run.** The frozen libraries are `global`, which is empty (2 rounds, both rejected), and `scoped`,
+which holds 1 global-scope skill (4 rounds: 1 accepted, 3 rejected). Each condition is scored once on the 52 eligible
+test PRs with `score --unlock-test --salt test-1`. `static` and `global` freeze the same empty library and use the
+same salt, so their review and repair cache keys are identical. Global's test result therefore **equals static's by
+construction**: it is the same draw, not an independent repeat, and we report it that way. The primary contrast,
+scoped vs global, is thus scoped vs static. The freeze guard now accepts the frozen commit or any descendant that
+leaves the five scored code files unchanged. Before this change, committing `FROZEN.json` moved HEAD away from its
+own `code_sha`, and the guard refused.
+
+**Exploratory arms, pre-registered here before any test outcome is seen.** Two arms, `global-rich` and `scoped-rich`,
+are identical to `global` and `scoped` except for the optimizer feedback (design fixed in
+`report/RICHER-FEEDBACK-SCOPE.md`, 2026-11-26):
+
+1. Each **development** reference comment gets a `category`, one of 8: correctness/logic, error handling, input
+   validation, API/contract misuse, tests/coverage, performance, concurrency/resources, maintainability/style. The
+   same model labels the gold comment text once, offline, at temperature 0, and the labels are saved to
+   `results/gold_categories_dev.json`. Selection and test comments are never classified or read.
+2. The optimizer's feedback examples gain, per comment, `category`, `resolved` (its test outcome) and `located`
+   (whether any finding was in the gold comment's file, given as a boolean only). It also gains resolved/total counts
+   per (PR type, category) over all development comments. Gold wording, paths, lines, diffs, test code and names
+   stay excluded, and `assert_clean` is unchanged.
+3. Everything else is the same: gate τ=1 with at most 1 regression, at most 5 rounds, stop after 2 consecutive
+   rejections, seed 0, salt `static-v1`, `MAX_EDITS = 1`, and the same retrieval.
+4. Two team members blind-label 30 development comments, and we report Cohen's κ against the model's labels.
+5. The arms run after the main locked test pass, from code that adds only the rich-feedback path and leaves the
+   frozen conditions' behaviour unchanged. They are frozen in a second freeze record (the first is kept as
+   `results/FROZEN_main.json`) and scored once on the same 52 test PRs with the same test salt. They are reported as
+   **exploratory**. The primary contrast and its pre-registered test do not change, and the rich-arm design may not
+   be revised after main test results are seen.
+
+**Evidence used.** Phase B round records and the 2026-11-26 scope document. No test-partition data.
+
 ---
 
 ## 18. Approximate timeline
