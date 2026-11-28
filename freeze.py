@@ -27,7 +27,8 @@ def git(*args):
 def rounds_for(condition, upto):
     """Latest record per round number (re-runs supersede invalid records, as in analyze_evolution.py)."""
     by = {}
-    for line in (ROOT / f"results/evolution/{condition}.jsonl").read_text().splitlines():
+    log = ROOT / f"results/evolution/{condition}.jsonl"
+    for line in (log.read_text().splitlines() if log.exists() else []):  # matched libraries (A8) have no rounds
         r = json.loads(line)
         if r.get("round") is not None and "accept" in r:
             by[r["round"]] = r
@@ -37,7 +38,7 @@ def rounds_for(condition, upto):
             for n, r in sorted(by.items()) if n <= upto]
 
 
-def build(test_salt, conditions=CONDITIONS, refreeze=None):
+def build(test_salt, conditions=CONDITIONS, refreeze=None, note=None):
     if git("status", "--porcelain", "--untracked-files=no"):
         raise SystemExit("tracked files are modified: commit first (a dirty tree is refused, PROTOCOL §14)")
     done = sorted(p.name for c in conditions for p in (ROOT / "results").glob(f"test_{c}.json"))
@@ -88,7 +89,7 @@ def build(test_salt, conditions=CONDITIONS, refreeze=None):
         "retrieval": {"budget_tokens": evolve.RETRIEVAL_BUDGET, "max_skills": evolve.MAX_SKILLS,
                       "order": "newest-first within scope", "dedup": True},
         "ledger_summary": {"entries": len(ledger), "tokens_by_stage": dict(tok)},
-        "statement": (f"Re-freeze under PROTOCOL {refreeze}: interrupted test passes exist as results/partial/ and are "
+        "statement": note or (f"Re-freeze under PROTOCOL {refreeze}: interrupted test passes exist as results/partial/ and are "
                       "resumed with the same salt; no test pass has completed." if refreeze
                       else "No test-partition evaluation has been run at freeze time."),
         "refreeze_amendment": refreeze,
@@ -100,9 +101,10 @@ def main():
     ap.add_argument("--test-salt", required=True)
     ap.add_argument("--conditions", default="global,scoped", help="comma list; the A5 rich arms use global-rich,scoped-rich")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--note", default=None, help="statement override, e.g. for an exploratory freeze (A8)")
     ap.add_argument("--refreeze", default=None, help="amendment id (e.g. A6) for a re-freeze after an interrupted pass")
     a = ap.parse_args()
-    out = build(a.test_salt, tuple(c.strip() for c in a.conditions.split(",") if c.strip()), a.refreeze)
+    out = build(a.test_salt, tuple(c.strip() for c in a.conditions.split(",") if c.strip()), a.refreeze, a.note)
     text = json.dumps(out, indent=2)
     if a.dry_run:
         print(text[:4000])

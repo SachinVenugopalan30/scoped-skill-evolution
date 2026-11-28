@@ -597,6 +597,39 @@ none.
 **Evidence used.** Time remaining and the A6 run logs. No rich-arm data exists, and no test outcome informed this
 decision.
 
+
+### A8 — 2026-11-28 (exploratory, post-hoc: content-matched organization test)
+
+**Why.** In the main experiment, the two arms never differed in organization. Global froze empty, and scoped froze
+with one global-scope skill, because the optimizer never wrote a PR-type skill. A8 tests organization directly, with
+no optimizer and no gate. It is **exploratory and post-hoc**: the locked test set has already been used (main results
+in `results/test_{static,global,scoped}.json`), so this result is reported as such and never replaces the
+pre-registered primary contrast.
+
+**Design, fixed before any matched-library output exists.**
+
+1. *Skills.* `matched_skills.py`: for each PR type (bug_fix, feature, other), the frozen model (`qwen36-27b`,
+   temperature 0) reads the human review comments of the eligible **development** PRs of that type (each truncated to
+   300 characters) and writes K = 4 general review skills of at most 55–60 words. A skill that names a development
+   repository or a commented file path is rejected and regenerated, up to 3 attempts. Selection and test are never
+   read. The generated texts are used unedited.
+2. *Libraries.* `matched-scoped` tags each skill with its PR type. `matched-global` holds the identical 12 texts
+   tagged global. The order interleaves the types (bug_fix, feature, other, repeated), so that newest-first global
+   retrieval mixes them. Retrieval rules are unchanged: 400-token budget, newest first, at most 6 skills. A scoped
+   review therefore gets its own type's skills, and a global review gets the same newest skills that fit, whatever
+   the PR type.
+3. *Scoring.* Each library is scored once on the 34 selection PRs (salt `matched-sel`, a pre-test check), then
+   frozen in `results/FROZEN.json` (the main freeze is kept as `results/FROZEN_main.json`), then scored once on the 52
+   test PRs (salt `test-1`), with 2 workers and the A6 container memory cap.
+4. *Analysis.* Contrast `matched-scoped − matched-global` on test, with the same metric and statistics as the
+   primary contrast (comment-level pass rate with errors as failed, repository-clustered bootstrap CI, paired
+   permutation test, McNemar). Static's existing test result is the reference. The selection result is reported
+   alongside as a second, independent sample. No threshold, condition or design element may change after any matched
+   result is seen.
+
+**Evidence used.** Main-experiment libraries and round logs. No new test outcome; A8 was written before any matched
+library was generated or scored.
+
 ---
 
 ## 18. Approximate timeline

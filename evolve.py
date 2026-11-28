@@ -15,8 +15,14 @@ RICH_SUFFIX = "-rich"  # PROTOCOL A5: exploratory arms that also see the categor
 GOLD_CATEGORIES = ROOT / "results/gold_categories_dev.json"
 
 
+MATCHED_PREFIX = "matched-"  # PROTOCOL A8: fixed, content-matched libraries scored without evolution
+
+
 def base(condition):
-    """The library organization a condition uses: "global-rich" behaves exactly like "global" except for feedback."""
+    """The library organization a condition uses: "global-rich" behaves exactly like "global" except for feedback, and
+    "matched-scoped" / "matched-global" use scoped / global retrieval over the same skill texts."""
+    if condition.startswith(MATCHED_PREFIX):
+        condition = condition[len(MATCHED_PREFIX):]
     return condition[:-len(RICH_SUFFIX)] if condition.endswith(RICH_SUFFIX) else condition
 
 
@@ -767,7 +773,8 @@ def main():
     e.add_argument("--no-gate", action="store_true")
     sc = sub.add_parser("score")
     sc.add_argument("--partition", default="test")
-    sc.add_argument("--condition", choices=["static", "global", "scoped", "global-rich", "scoped-rich"], required=True)
+    sc.add_argument("--condition", choices=["static", "global", "scoped", "global-rich", "scoped-rich",
+                                            "matched-global", "matched-scoped"], required=True)
     sc.add_argument("--library", default=None)
     sc.add_argument("--n", type=int, default=None)
     for p in (s, e, sc):
