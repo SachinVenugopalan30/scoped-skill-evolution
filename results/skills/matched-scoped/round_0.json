@@ -1,0 +1,74 @@
+[
+ {
+  "id": "m1",
+  "scope": "bug_fix",
+  "text": "Verify the fix addresses the root cause without introducing regressions, ensuring logic changes align with documented behavior and do not inadvertently alter return values or side effects.",
+  "order": 0
+ },
+ {
+  "id": "m2",
+  "scope": "feature",
+  "text": "Verify that function arguments avoid mutable default values to prevent state leakage across calls. Ensure type hints are accurate and dependencies are correctly categorized between runtime and development requirements.",
+  "order": 1
+ },
+ {
+  "id": "m3",
+  "scope": "other",
+  "text": "Verify that removed code is truly unused and safe to delete, ensuring no hidden dependencies or untested paths are broken by the change.",
+  "order": 2
+ },
+ {
+  "id": "m4",
+  "scope": "bug_fix",
+  "text": "Check for code duplication, redundant checks, or unnecessary complexity. Prefer existing utilities, default values, or simpler constructs over manual reimplementation or verbose conditional logic.",
+  "order": 3
+ },
+ {
+  "id": "m5",
+  "scope": "feature",
+  "text": "Check for unnecessary object instantiation, redundant code, or unused variables. Prefer mutating existing objects over creating new ones when references must remain consistent, and remove dead code paths.",
+  "order": 4
+ },
+ {
+  "id": "m6",
+  "scope": "other",
+  "text": "Ensure documentation accurately reflects implementation details, including parameter types, return values, and edge cases, correcting any misleading or outdated descriptions.",
+  "order": 5
+ },
+ {
+  "id": "m7",
+  "scope": "bug_fix",
+  "text": "Ensure tests are comprehensive, correctly named, and isolated. Verify they cover edge cases, parameter variations, and do not rely on implicit state or leave debug artifacts in the codebase.",
+  "order": 6
+ },
+ {
+  "id": "m8",
+  "scope": "feature",
+  "text": "Ensure configuration parameters are passed explicitly rather than hardcoded, and validate that environment-specific logic handles all runtime scenarios. Avoid exposing internal implementation details like pagination limits in public APIs.",
+  "order": 7
+ },
+ {
+  "id": "m9",
+  "scope": "other",
+  "text": "Check that tests are meaningful and actually validate behavior, avoiding trivial assertions, always-passing conditions, or logic that fails to catch regressions.",
+  "order": 8
+ },
+ {
+  "id": "m10",
+  "scope": "bug_fix",
+  "text": "Validate naming conventions, spelling, and documentation accuracy. Ensure variables, functions, and comments use correct terminology and that documentation links or references are valid and up-to-date.",
+  "order": 9
+ },
+ {
+  "id": "m11",
+  "scope": "feature",
+  "text": "Confirm that tests cover new logic within existing suites rather than creating isolated files. Verify that error handling uses specific exceptions and that deprecation strategies clearly distinguish between introduction and removal versions.",
+  "order": 10
+ },
+ {
+  "id": "m12",
+  "scope": "other",
+  "text": "Identify undefined variables, redundant assignments, and configuration errors, ensuring code is clean, logically sound, and free from syntax or runtime issues.",
+  "order": 11
+ }
+]
