@@ -1,9 +1,9 @@
 {
-  "frozen_at_utc": "2026-11-27T17:10:35+00:00",
-  "code_sha": "7531c1479b0187b614d4465bfbda9da3e6abef16",
+  "frozen_at_utc": "2026-11-28T18:09:49+00:00",
+  "code_sha": "00c732a04285b2c756997bffe73766801a5840c0",
   "code_manifest": {
     "harness.py": "5ae7a63fdd9866756c7ecc490168c0d362b64af4ec5fbe1ccf5a5c23ff2aed9d",
-    "evolve.py": "3e925ecb0f7b9356b6dfa7099e3e13ac96a9a4de882a2458b08a6f584d0e67d8",
+    "evolve.py": "9fb740621e7bc7e60caa04a36e0ef3ff1499e5f700c28ad8154ff41d3f7a9dff",
     "reviewer.py": "715f547e2c02b412be050201f1e09b92e1b72e36154f314471b57561401adce6",
     "data.py": "87217447dbc3432ea71bf0ddea722f1ebf344916c989abd234839e6e165b0c7a",
     "proxy_hooks.py": "54085f7f4deade6ea3a0f02eb57153e9ea7ab485714055ea66e50f552c77beed"
@@ -257,136 +257,171 @@
     ]
   },
   "libraries": {
-    "global": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-    "scoped": "a1a7402b5867ace558608f4aeaa281b6390199e7a9a20392871d1a3245ca2bc0"
+    "matched-global": "4423b8b46286f02562ab5655885d4a91a999cfeb625274ddd47e220e0f8f8fc8",
+    "matched-scoped": "64cc0ac331572a2c3cd94671e7b3652798bec31c20e49f862448e79636bd65c8"
   },
   "library_detail": {
-    "global": {
-      "snapshot": "results/skills/global/round_2.json",
-      "rounds_evaluated": 2,
-      "skills": [],
-      "accepted": 0,
-      "rejected": 2,
-      "rounds": [
-        {
-          "round": 1,
-          "accept": false,
-          "gained": 1,
-          "regressed": 5,
-          "net": -4,
-          "note": null,
-          "edits": [
-            {
-              "op": "add",
-              "scope": "global",
-              "text": "Prioritize identifying runtime errors (NameError, TypeError, SyntaxError) and logical flaws (undefined variables, incorrect API usage) over stylistic or documentation issues. Ensure proposed fixes are syntactically correct and address the root cause, not just symptoms. Avoid suggesting changes that introduce new errors or rely on undefined context."
-            }
-          ],
-          "run_id": "70a77883",
-          "dev_passed_comments": 26
-        },
-        {
-          "round": 2,
-          "accept": false,
-          "gained": 1,
-          "regressed": 4,
-          "net": -3,
-          "note": null,
-          "edits": [
-            {
-              "op": "add",
-              "scope": "global",
-              "text": "Verify type consistency in set operations and API calls. Ensure operands support required operators (e.g., convert dict_keys to set before union). Validate that function arguments match expected types and that return values are handled correctly according to documentation (e.g., error codes like -1 vs 0). Check for missing imports and undefined variables in all code paths."
-            }
-          ],
-          "run_id": "70a77883",
-          "dev_passed_comments": 26
-        }
-      ]
-    },
-    "scoped": {
-      "snapshot": "results/skills/scoped/round_4.json",
-      "rounds_evaluated": 4,
+    "matched-global": {
+      "snapshot": "results/skills/matched-global/round_0.json",
+      "rounds_evaluated": 0,
       "skills": [
         {
-          "id": "s1",
+          "id": "m1",
           "scope": "global",
-          "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings.",
+          "text": "Verify the fix addresses the root cause without introducing regressions, ensuring logic changes align with documented behavior and do not inadvertently alter return values or side effects.",
+          "order": 0
+        },
+        {
+          "id": "m2",
+          "scope": "global",
+          "text": "Verify that function arguments avoid mutable default values to prevent state leakage across calls. Ensure type hints are accurate and dependencies are correctly categorized between runtime and development requirements.",
           "order": 1
+        },
+        {
+          "id": "m3",
+          "scope": "global",
+          "text": "Verify that removed code is truly unused and safe to delete, ensuring no hidden dependencies or untested paths are broken by the change.",
+          "order": 2
+        },
+        {
+          "id": "m4",
+          "scope": "global",
+          "text": "Check for code duplication, redundant checks, or unnecessary complexity. Prefer existing utilities, default values, or simpler constructs over manual reimplementation or verbose conditional logic.",
+          "order": 3
+        },
+        {
+          "id": "m5",
+          "scope": "global",
+          "text": "Check for unnecessary object instantiation, redundant code, or unused variables. Prefer mutating existing objects over creating new ones when references must remain consistent, and remove dead code paths.",
+          "order": 4
+        },
+        {
+          "id": "m6",
+          "scope": "global",
+          "text": "Ensure documentation accurately reflects implementation details, including parameter types, return values, and edge cases, correcting any misleading or outdated descriptions.",
+          "order": 5
+        },
+        {
+          "id": "m7",
+          "scope": "global",
+          "text": "Ensure tests are comprehensive, correctly named, and isolated. Verify they cover edge cases, parameter variations, and do not rely on implicit state or leave debug artifacts in the codebase.",
+          "order": 6
+        },
+        {
+          "id": "m8",
+          "scope": "global",
+          "text": "Ensure configuration parameters are passed explicitly rather than hardcoded, and validate that environment-specific logic handles all runtime scenarios. Avoid exposing internal implementation details like pagination limits in public APIs.",
+          "order": 7
+        },
+        {
+          "id": "m9",
+          "scope": "global",
+          "text": "Check that tests are meaningful and actually validate behavior, avoiding trivial assertions, always-passing conditions, or logic that fails to catch regressions.",
+          "order": 8
+        },
+        {
+          "id": "m10",
+          "scope": "global",
+          "text": "Validate naming conventions, spelling, and documentation accuracy. Ensure variables, functions, and comments use correct terminology and that documentation links or references are valid and up-to-date.",
+          "order": 9
+        },
+        {
+          "id": "m11",
+          "scope": "global",
+          "text": "Confirm that tests cover new logic within existing suites rather than creating isolated files. Verify that error handling uses specific exceptions and that deprecation strategies clearly distinguish between introduction and removal versions.",
+          "order": 10
+        },
+        {
+          "id": "m12",
+          "scope": "global",
+          "text": "Identify undefined variables, redundant assignments, and configuration errors, ensuring code is clean, logically sound, and free from syntax or runtime issues.",
+          "order": 11
         }
       ],
-      "accepted": 1,
-      "rejected": 3,
-      "rounds": [
+      "accepted": 0,
+      "rejected": 0,
+      "rounds": []
+    },
+    "matched-scoped": {
+      "snapshot": "results/skills/matched-scoped/round_0.json",
+      "rounds_evaluated": 0,
+      "skills": [
         {
-          "round": 1,
-          "accept": false,
-          "gained": 0,
-          "regressed": 3,
-          "net": -3,
-          "note": null,
-          "edits": [
-            {
-              "op": "add",
-              "scope": "global",
-              "text": "Prioritize high-impact correctness issues: syntax errors, undefined variables, incorrect API usage, and type mismatches. Avoid nitpicking documentation or style unless it causes runtime failure. Ensure findings are distinct and actionable."
-            }
-          ],
-          "run_id": "fcfcff2c",
-          "dev_passed_comments": 26
+          "id": "m1",
+          "scope": "bug_fix",
+          "text": "Verify the fix addresses the root cause without introducing regressions, ensuring logic changes align with documented behavior and do not inadvertently alter return values or side effects.",
+          "order": 0
         },
         {
-          "round": 2,
-          "accept": true,
-          "gained": 2,
-          "regressed": 1,
-          "net": 1,
-          "note": null,
-          "edits": [
-            {
-              "op": "add",
-              "scope": "global",
-              "text": "Validate API contract compliance: ensure arguments match expected types, keys exist before access, and return values are handled correctly. Check for missing imports, incorrect exception handling, and fragile subprocess usage. Verify that error responses use appropriate HTTP status codes and that tests assert actual outcomes rather than truthy strings."
-            }
-          ],
-          "run_id": "5733d42c",
-          "dev_passed_comments": 26
+          "id": "m2",
+          "scope": "feature",
+          "text": "Verify that function arguments avoid mutable default values to prevent state leakage across calls. Ensure type hints are accurate and dependencies are correctly categorized between runtime and development requirements.",
+          "order": 1
         },
         {
-          "round": 3,
-          "accept": false,
-          "gained": 1,
-          "regressed": 1,
-          "net": 0,
-          "note": null,
-          "edits": [
-            {
-              "op": "add",
-              "scope": "global",
-              "text": "Verify semantic correctness of logic, not just syntax. Check that API calls match expected contracts (e.g., paginator usage, error codes), variables are defined before use, and tests assert outcomes rather than implementation details. Ensure imports are present and types are handled correctly."
-            }
-          ],
-          "run_id": "ca5fa18d",
-          "dev_passed_comments": 21
+          "id": "m3",
+          "scope": "other",
+          "text": "Verify that removed code is truly unused and safe to delete, ensuring no hidden dependencies or untested paths are broken by the change.",
+          "order": 2
         },
         {
-          "round": 4,
-          "accept": false,
-          "gained": 0,
-          "regressed": 2,
-          "net": -2,
-          "note": null,
-          "edits": [
-            {
-              "op": "add",
-              "scope": "global",
-              "text": "Verify variable scope and initialization order to prevent UnboundLocalError. Ensure conditional branches define variables before use. Check that API calls handle empty inputs gracefully (e.g., defaulting to 'all' instead of empty results). Validate that error handling returns appropriate HTTP status codes (500 for server errors, not 200) and avoids leaking sensitive stack traces to clients."
-            }
-          ],
-          "run_id": "ca5fa18d",
-          "dev_passed_comments": 21
+          "id": "m4",
+          "scope": "bug_fix",
+          "text": "Check for code duplication, redundant checks, or unnecessary complexity. Prefer existing utilities, default values, or simpler constructs over manual reimplementation or verbose conditional logic.",
+          "order": 3
+        },
+        {
+          "id": "m5",
+          "scope": "feature",
+          "text": "Check for unnecessary object instantiation, redundant code, or unused variables. Prefer mutating existing objects over creating new ones when references must remain consistent, and remove dead code paths.",
+          "order": 4
+        },
+        {
+          "id": "m6",
+          "scope": "other",
+          "text": "Ensure documentation accurately reflects implementation details, including parameter types, return values, and edge cases, correcting any misleading or outdated descriptions.",
+          "order": 5
+        },
+        {
+          "id": "m7",
+          "scope": "bug_fix",
+          "text": "Ensure tests are comprehensive, correctly named, and isolated. Verify they cover edge cases, parameter variations, and do not rely on implicit state or leave debug artifacts in the codebase.",
+          "order": 6
+        },
+        {
+          "id": "m8",
+          "scope": "feature",
+          "text": "Ensure configuration parameters are passed explicitly rather than hardcoded, and validate that environment-specific logic handles all runtime scenarios. Avoid exposing internal implementation details like pagination limits in public APIs.",
+          "order": 7
+        },
+        {
+          "id": "m9",
+          "scope": "other",
+          "text": "Check that tests are meaningful and actually validate behavior, avoiding trivial assertions, always-passing conditions, or logic that fails to catch regressions.",
+          "order": 8
+        },
+        {
+          "id": "m10",
+          "scope": "bug_fix",
+          "text": "Validate naming conventions, spelling, and documentation accuracy. Ensure variables, functions, and comments use correct terminology and that documentation links or references are valid and up-to-date.",
+          "order": 9
+        },
+        {
+          "id": "m11",
+          "scope": "feature",
+          "text": "Confirm that tests cover new logic within existing suites rather than creating isolated files. Verify that error handling uses specific exceptions and that deprecation strategies clearly distinguish between introduction and removal versions.",
+          "order": 10
+        },
+        {
+          "id": "m12",
+          "scope": "other",
+          "text": "Identify undefined variables, redundant assignments, and configuration errors, ensuring code is clean, logically sound, and free from syntax or runtime issues.",
+          "order": 11
         }
-      ]
+      ],
+      "accepted": 0,
+      "rejected": 0,
+      "rounds": []
     }
   },
   "retrieval": {
@@ -403,6 +438,6 @@
       "optimizer": 89800
     }
   },
-  "statement": "Re-freeze under PROTOCOL A6: interrupted test passes exist as results/partial/ and are resumed with the same salt; no test pass has completed.",
-  "refreeze_amendment": "A6"
+  "statement": "Exploratory freeze under PROTOCOL A8 (post-hoc; the main conditions were already scored on test, see FROZEN_main.json). No matched-library evaluation of any partition has been run; this freeze precedes even the selection pass.",
+  "refreeze_amendment": null
 }
