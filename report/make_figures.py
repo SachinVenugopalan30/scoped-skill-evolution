@@ -91,8 +91,37 @@ def gate():
     plt.close(fig)
 
 
+def evolution():
+    """Left: development pass rate per round. Right: selection candidate vs current, against the A/A band."""
+    cal = [json.loads((ROOT / f"results/calibration/calib_{k}.json").read_text())["summary"]["passed"] for k in range(1, 6)]
+    lo, hi = min(cal) / 42 * 100, max(cal) / 42 * 100
+    colors = {"global": GAIN, "scoped": LOSS}
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(3.4, 1.8), dpi=300)
+    a1.axhline(26 / 107 * 100, color=MUTED, ls="--", lw=0.7, label="static")
+    for c, dx in (("global", -0.07), ("scoped", 0.07)):  # small offset: rounds 1-2 coincide
+        rs = latest_rounds(c)
+        xs = [r["round"] + dx for r in rs]
+        a1.plot(xs, [r["dev"]["passed"] / 107 * 100 for r in rs], marker="o", ms=3, lw=1.2, color=colors[c], label=c)
+        a2.plot(xs, [r["sel_base"]["passed"] / 42 * 100 for r in rs], lw=1, color=colors[c], alpha=0.6)
+        a2.scatter(xs, [r["sel_new"]["passed"] / 42 * 100 for r in rs], s=14, color=colors[c], zorder=3,
+                   edgecolor="white", linewidth=0.6)
+    a2.axhspan(lo, hi, color="#e9ecf1", zorder=0)
+    a2.text(4.45, (lo + hi) / 2, "A/A range", rotation=90, va="center", ha="center", fontsize=5.5, color=MUTED)
+    for ax, t in ((a1, "Development"), (a2, "Selection: candidate (dots)\nvs current (lines)")):
+        ax.set_title(t, fontsize=6.5, color=TEXT); ax.set_xticks([1, 2, 3, 4]); ax.set_xlabel("round", fontsize=6.5)
+        ax.set_xlim(0.6, 4.7); ax.grid(axis="y", color="#eeeeee", lw=0.5); ax.set_axisbelow(True)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    a1.set_ylabel("comment pass rate (%)", fontsize=6.5); a1.set_ylim(15, 30); a2.set_ylim(8, 36)
+    a1.legend(fontsize=5.5, frameon=False, loc="lower left")
+    fig.tight_layout(pad=0.3)
+    fig.savefig(OUT / "fig_evolution.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     calibration_strip()
     gate()
-    print("wrote", OUT / "fig_calibration.pdf", OUT / "fig_gate.pdf")
+    evolution()
+    print("wrote", OUT / "fig_calibration.pdf", OUT / "fig_gate.pdf", OUT / "fig_evolution.pdf")

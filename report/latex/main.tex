@@ -105,12 +105,35 @@ For each PR, the reviewer gets the title, description and diff, plus up to 400 t
 \subsection{Skills, optimizer and sanitizer}
 A skill is a review instruction of at most 60 words, tagged global, bug fix, feature or other. In the \emph{global} condition all skills are global; in \emph{scoped}, retrieval adds the PR type's skills first and then global ones. Both use the same rules: a 400-token budget, newest first within a scope, duplicates removed, at most 6 skills per prompt. \emph{Static} retrieves nothing.
 
-Each round evaluates the current library on all 87 development PRs and makes one optimizer call. The optimizer sees an allowlisted summary: pass counts per PR type, and up to 12 examples (failed PRs first) with the PR type, the reviewer's own findings with paths and line numbers removed, and how many of the PR's comments passed. It never sees diffs, test code, gold comments or selection results~\cite{kapoor2023leakage}; a check on the exact payload stops the run if any of these, a PR id or a repository name gets through. The optimizer proposes at most one edit per round (add, replace or delete) and is told which edits the gate already rejected.
+Each round evaluates the current library on all 87 development PRs and makes one optimizer call. The optimizer sees an allowlisted summary: pass counts per PR type, and up to 12 examples (failed PRs first) with the PR type, the reviewer's own findings with paths and line numbers removed, and how many of the PR's comments passed. It never sees diffs, test code, gold comments or selection results~\cite{kapoor2023leakage}. Table~\ref{tab:sanitizer} lists both sides. The payload is built from an allowlist rather than by deleting fields from a richer record, and a check on the exact final payload stops the run if a PR id, repository name, changed file path, gold comment text or test code appears in it. The optimizer proposes at most one edit per round (add, replace or delete) and is told which edits the gate already rejected, so that it does not repeat them.
+
+\begin{table}[t]
+\caption{What the optimizer sees and never sees.}
+\label{tab:sanitizer}
+\small
+\begin{tabular}{p{0.45\columnwidth}p{0.45\columnwidth}}
+\toprule
+Sees (development only) & Never sees \\
+\midrule
+PR type (bug fix / feature / other) & PR diff, title, description \\
+Reviewer's own findings, with paths and line numbers replaced, capped at 600 characters & Gold review comments and their file paths or lines \\
+Per PR: comments passed / total & Test code and which comment failed \\
+Pass counts per PR type & Repository names, PR ids \\
+Current skills and how often each was retrieved & Any selection or test outcome \\
+Edits the gate already rejected & Anything from the test partition \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Validation gate and its calibration}
 The current and candidate libraries are both evaluated on the 34 selection PRs. At the PR level, \emph{gained} counts PRs that fail with the current library and pass with the candidate, \emph{regressed} the reverse, and $\mathit{net} = \mathit{gained} - \mathit{regressed}$. A candidate is accepted if $\mathit{net} \geq \tau$ and $\mathit{regressed} \leq 1$.
 
-SkillOpt's strict-improvement rule corresponds, at the PR level, to $\tau = 1$; our proposal used a variant that also requires $\mathit{gained} \geq 1$ and $\mathit{regressed} \leq 1$. Instead, before any evolution, we evaluated the unchanged (empty) library on the selection set five times with fresh draws: same prompts, PRs and seed, no cache. Any difference between these runs is noise. We set $\tau = \max(1, \lceil P_{95}(|\mathit{net}|)\rceil)$ over the nets of each repeat against the first.
+SkillOpt's strict-improvement rule corresponds, at the PR level, to $\tau = 1$; our proposal used a variant that also requires $\mathit{gained} \geq 1$ and $\mathit{regressed} \leq 1$. Our pilot suggested that one flipped PR could decide a round, so rather than fix $\tau$ in advance we calibrated it from noise, before any evolution round:
+\begin{enumerate}
+\item evaluate the unchanged (empty) library on all 34 selection PRs five times, each with a fresh draw (same prompts, PRs and seed, no cache), so that any difference between runs is noise;
+\item compute $\mathit{net}$ for each repeat against the first;
+\item set $\tau = \max(1, \lceil P_{95}(|\mathit{net}|)\rceil)$, keep the regression bound at 1, and record all repeats and the threshold before any evolution round.
+\end{enumerate}
 
 Each gated condition runs at most 5 rounds and stops after 2 consecutive rejections; a rejected candidate leaves the library unchanged. Both conditions use the same PRs, seed and schedule. Results are cached by PR, retrieved skills and draw salt, so a library evaluated once is never re-drawn.
 
@@ -125,6 +148,8 @@ The protocol was fixed on 2026-11-23, before any final-run data existed. The tes
 
 \subsection{Evaluation}
 The primary metric is the comment-level pass rate on the locked test partition, errors counted as failed, over all 70 comments of the 52 eligible test PRs. The primary contrast is scoped versus global, two-sided. We report 95\% confidence intervals from a bootstrap that resamples the 21 test repositories (10,000 resamples)~\cite{efron1993bootstrap, field2007clustered}, because comments in one repository share conventions. The pre-registered test is a sign-flip permutation test on paired comment outcomes with whole repositories flipped (10,000 permutations); we also report McNemar's test~\cite{mcnemar1947} and its discordant counts~\cite{dror2018hitchhiker}. If a condition errors on more than 10\% of test PRs, we report the complete-case rate alongside.
+
+\textbf{Why these metrics.} The comment-level pass rate is the only measure c-CRAB verifies directly, and it needs no judge model. We cluster the confidence interval by repository because comments in one repository share conventions, and treating them as independent would make intervals too narrow. Pass and fail are paired by comment across conditions, which removes between-PR difficulty from the comparison. Regressions and net gain per accepted edit measure what the gate is asked to optimize, since a candidate can gain and lose equally and look neutral on pass rate alone. The gap between selection and test measures transfer, which is what the research question is about. Tokens and time per passing review matter because a gain bought at many times the compute is not a contribution. The run-to-run flip rate separates real effects from repair noise, which we expected to be the dominant error source.
 
 \section{Results}
 All numbers use \texttt{qwen36-27b} in every role. Sections~\ref{sec:static}--\ref{sec:evo} use no test data.
@@ -196,9 +221,27 @@ Scoped & 4 & ``Verify variable scope and initialization order to prevent Unbound
 
 \textbf{One edit was accepted, and it is indistinguishable from noise.} Five of six candidates had a net of 0 or below, and global round 1 regressed 5 PRs. The one acceptance had a net of +1; identical runs produced +1 and +2, and the calibrated gate would have rejected every candidate. The frozen libraries are therefore \emph{global}: empty, and \emph{scoped}: one global skill.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_evolution.pdf}
+\caption{Left: development pass rate per round (dashed: static). Right: selection pass rate of each candidate (dots) against the current library (lines); the shaded band is the range of five identical runs of the empty library.}
+\label{fig:evo}
+\end{figure}
+
+\textbf{Three candidates scored below every identical run.} Figure~\ref{fig:evo} places each candidate against the range of the five A/A runs (21.4--33.3\%). Global rounds 1 and 2 and scoped round 1 passed 5, 8 and 8 of 42 selection comments, below the lowest identical run (9 of 42). Those edits most likely did real harm, beyond noise. The accepted edit and the other two candidates fall inside the band.
+
 \textbf{The accepted skill did not help on development either.} With it, the development pass passed 21 of 107 comments (19.6\%, 2 errors) against 26 of 107 for the static reviewer.
 
 \textbf{The optimizer never used scoping.} All six proposals are global, including the four in the scoped condition, which could have written type-specific skills. Each tells the reviewer to look harder for correctness problems (undefined variables, types, imports, API contracts), and two tell it to avoid style and documentation comments. The specific details (dict\_keys, error codes, HTTP status codes) come straight from the reviewer's own findings on PRs where the review failed. The optimizer sees \emph{that} those reviews failed, not \emph{what} the human reviewer asked for, so it can only restate the failed review in more general words.
+
+\subsection{A worked example}\label{sec:example}
+Development PR \texttt{numpy-15425} (bug fix) fixes \texttt{dir(numpy)} returning a duplicate \texttt{testing} entry and adds a test. Its one human review comment asked why the test starts a subprocess, and suggested replacing it with \texttt{assert len(dir(np)) == len(set(dir(np)))}. The reviewer's top finding instead claimed that the expression \texttt{list(globals().keys() | \{'Tester', 'testing'\})} ``will raise a TypeError because globals().keys() returns a dict\_keys object, which does not support the | (union) operator with a set''. That claim is false: in Python~3, \texttt{dict\_keys} supports set union. Its second finding, that the subprocess was unnecessary, was close to the human's concern. The repair failed, and the optimizer received exactly this:
+
+\begin{quote}\small
+\texttt{pr\_type: bug\_fix; findings: [``Incorrect set operation on list'': \ldots convert to a set first \ldots], [``Flaky test using subprocess'': \ldots], [``Incorrect assertion logic'': \ldots]; passed: 0, total: 1}
+\end{quote}
+
+Nothing in this tells the optimizer which finding, if any, was on target. In round 2, global proposed ``Verify type consistency in set operations \ldots{} (e.g., convert dict\_keys to set before union)'', which turns the reviewer's mistake into a rule. The gate rejected it (net $-3$, below every identical run), so here the gate caught a harmful edit. But nothing in the feedback could have kept the optimizer from proposing it: with pass/fail feedback alone, a wrong finding on a failed PR and a right one look the same.
 
 \subsection{Locked test}\label{sec:test}
 Each frozen library was scored once on the 52 test PRs with the same test salt (Table~\ref{tab:test}, Figure~\ref{fig:test}).
@@ -232,6 +275,13 @@ Scoped & 9 / 70 & 12.9\% [5.3, 21.6] & 7 / 52 & 6 & 14.1\% \\
 
 \textbf{Errors, PR types and transfer.} Scoped errored on 6 of 52 PRs (11.5\%), above our 10\% bar; its complete-case rate (14.1\% against 21.0\%) gives the same ordering. Scoped passes fewer feature comments than global (2 against 6 of 37) and fewer bug-fix comments (6 against 7 of 23), counts too small to read further. Selection overstated test performance for every condition: by 2.9 points for static and by 13.3 points for scoped, whose selection estimate (26.2\%) comes from the very run that accepted its skill.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_transfer.png}
+\caption{Selection versus test pass rate per condition. Selection is the partition the gate saw, so it is a transfer diagnostic, never held-out performance.}
+\label{fig:transfer}
+\end{figure}
+
 \textbf{Cost.} Hosting was free, so we count tokens and time. More than 99\% of tokens are the repair agent's prompts. On the test pass, static used 3.0M tokens and 39 minutes of review-plus-repair time per PR that passed all its tests; scoped used 4.7M tokens and 44 minutes, spending more per PR (636k against 522k tokens) and passing fewer. Runs moved from a laptop, where the amd64 images ran under emulation, to a 4-core x86 server, where a repair took 91\,s instead of about 230\,s; memory, not CPU, then limited parallelism.
 
 \section{Discussion}
@@ -246,13 +296,36 @@ Under A1 both libraries evolved under a permissive gate, so accepted edits were 
 
 \textbf{A quieter measurement.} A gate can only detect an effect larger than its noise. Three changes would help: evaluate each candidate several times and gate on the mean; drop the PRs that always or never pass, which carry no information, and spend the budget on the unstable ones; and use a larger selection set, since the noise in \emph{net} grows roughly with the square root of the set size while a real per-PR effect grows linearly.
 
-\subsection{Limitations}
-A 27B open model plays every role, so absolute pass rates are not comparable to the released tools or to our Sonnet pilot. Compute limited how many repeats we could afford. We did not run a control that replaces the reviewer's findings with generic text, so we cannot say how much of the repair agent's success comes from the findings rather than the diff. Four test PRs have JavaScript tests and may fail for environment reasons. We dropped Code Review Bench as an outside test set and did not run the planned blind labelling of findings. The selection set has only 6 feature PRs. Completed test PRs ran before the memory cap of A6 and the remaining ones after it.
+\subsection{Threats to validity}
+\textbf{Internal.} One model plays reviewer, optimizer and repair agent, so a weakness of the model in any role affects every condition alike. That keeps the comparison fair but limits how far it generalizes. The first locked test pass was interrupted and resumed (A6): completed PRs ran without the container memory cap and the remaining ones with it, which can change whether a heavy repository errors. Global and static share cached draws, so their identical results are by construction and not an independent replication. We did not run a control that replaces the reviewer's findings with generic text, so we cannot say how much of the repair agent's success comes from the findings rather than from reading the diff. Several Phase B rounds were re-run after implementation bugs (A2--A4); the analysis keeps the latest valid record per round, and the discarded attempts are archived.
+
+\textbf{Construct.} The comment-level pass rate measures whether a fixed agent can act on a review, not whether a human would find it useful. A review that names the right problem but leads the agent to a fix the hidden test does not accept counts as a failure. Infrastructure errors count as failures in the primary metric; the complete-case rates give the same ordering.
+
+\textbf{External.} A 27B open model plays every role, so absolute pass rates are not comparable to the released tools or to our Sonnet pilot. Four test PRs have JavaScript tests and may fail for environment reasons. We dropped Code Review Bench as an outside test set and did not run the planned blind labelling of findings, so external validity rests on 21 unseen repositories of one benchmark.
+
+\textbf{Statistical.} The selection set has 34 PRs, only 6 of them features, and the test set 52. Compute limited us to five A/A repeats and one test pass per condition, which is too few to detect effects of a few points~\cite{button2013power}.
 
 \section{Conclusion}
 We built a test-guided skill evolution pipeline for code review agents, with repository-disjoint splits, a feedback channel that hides tests and gold comments from the optimizer, and a test partition scored once. Before evolving anything, we measured that the selection outcome changes by up to 5 of 34 PRs between identical runs. A gate calibrated to that noise accepts nothing, and a SkillOpt-style gate accepts about a third of edits that change nothing. On 70 held-out comments the scoped library, holding one accepted skill, passed 12.9\% against 18.6\% for the empty global library, a difference we cannot distinguish from zero, and the optimizer never used the scoping it was offered. Whether scoped skills transfer better than global ones remains open. Testing it on c-CRAB needs feedback that says what a review missed and a validation signal several times less noisy than one run per PR.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
+
+\appendix
+\section{Reproducibility}
+Code, protocol, amendments, round logs, library snapshots, freeze records and scored outputs are in the project repository. Key commits: protocol pre-registered (\texttt{7de9d58}); amendment A1 (\texttt{c650929}); first freeze (\texttt{187c9d7}); re-freeze under A6 (\texttt{8b2daf6}, the code the test pass ran on); A7 (\texttt{6a538f7}); scored test outputs (\texttt{9184340}).
+
+\textbf{Commands.} With \texttt{uv} and Docker installed and an ASU Voyager key in \texttt{.env}:
+\begin{enumerate}
+\item \texttt{uv run python data.py}: census and repository-disjoint splits.
+\item \texttt{uv run python test\_core.py}: offline tests (no network or Docker).
+\item \texttt{uv run python evolve.py static --partition selection --n 34 --salt calib-$k$} for $k=1\ldots5$, then \texttt{calibrate\_gate.py}: the A/A calibration.
+\item \texttt{uv run python run\_phase\_b.py --tau 1}: evolution of both conditions.
+\item \texttt{uv run python freeze.py --test-salt test-1}: freeze record; commit it.
+\item \texttt{uv run python evolve.py score --partition test --condition $c$ --unlock-test --salt test-1} for each condition: the single locked test pass.
+\item \texttt{analyze\_evolution.py}, \texttt{analyze\_final.py}, \texttt{report/make\_figures.py}: statistics and figures.
+\end{enumerate}
+
+\textbf{Compute.} Hosting was free, so the ledger records tokens and wall-clock time, not dollars. By the freeze it held 280M repair tokens, 3.6M review tokens and 0.09M optimizer tokens. The test pass used 27.1M tokens for static and 33.1M for scoped; global reused static's cached draws. On the x86 server, two or three parallel workers evaluated a 34-PR selection set in about 1 to 1.5 hours.
 
 \end{document}
