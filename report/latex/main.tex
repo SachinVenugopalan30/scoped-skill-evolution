@@ -311,21 +311,4 @@ We built a test-guided skill evolution pipeline for code review agents, with rep
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
 
-\appendix
-\section{Reproducibility}
-Code, protocol, amendments, round logs, library snapshots, freeze records and scored outputs are in the project repository. Key commits: protocol pre-registered (\texttt{7de9d58}); amendment A1 (\texttt{c650929}); first freeze (\texttt{187c9d7}); re-freeze under A6 (\texttt{8b2daf6}, the code the test pass ran on); A7 (\texttt{6a538f7}); scored test outputs (\texttt{9184340}).
-
-\textbf{Commands.} With \texttt{uv} and Docker installed and an ASU Voyager key in \texttt{.env}:
-\begin{enumerate}
-\item \texttt{uv run python data.py}: census and repository-disjoint splits.
-\item \texttt{uv run python test\_core.py}: offline tests (no network or Docker).
-\item \texttt{uv run python evolve.py static --partition selection --n 34 --salt calib-$k$} for $k=1\ldots5$, then \texttt{calibrate\_gate.py}: the A/A calibration.
-\item \texttt{uv run python run\_phase\_b.py --tau 1}: evolution of both conditions.
-\item \texttt{uv run python freeze.py --test-salt test-1}: freeze record; commit it.
-\item \texttt{uv run python evolve.py score --partition test --condition $c$ --unlock-test --salt test-1} for each condition: the single locked test pass.
-\item \texttt{analyze\_evolution.py}, \texttt{analyze\_final.py}, \texttt{report/make\_figures.py}: statistics and figures.
-\end{enumerate}
-
-\textbf{Compute.} Hosting was free, so the ledger records tokens and wall-clock time, not dollars. By the freeze it held 280M repair tokens, 3.6M review tokens and 0.09M optimizer tokens. The test pass used 27.1M tokens for static and 33.1M for scoped; global reused static's cached draws. On the x86 server, two or three parallel workers evaluated a 34-PR selection set in about 1 to 1.5 hours.
-
 \end{document}
